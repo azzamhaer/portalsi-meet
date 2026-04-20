@@ -119,8 +119,8 @@ if command -v cyberpanel > /dev/null; then
   echo "🔧 Setup Reverse Proxy (OpenLiteSpeed) untuk ${MEET_DOMAIN}"
   cat <<EOF > /home/${MEET_DOMAIN}/public_html/.htaccess
 RewriteEngine On
-# Proxy all requests to Next.js on localhost:3000
-RewriteRule ^(.*)$ http://127.0.0.1:3000/\$1 [P,L]
+# Proxy all requests to Next.js on localhost:3005
+RewriteRule ^(.*)$ http://127.0.0.1:3005/\$1 [P,L]
 EOF
   chown -R admin:admin /home/${MEET_DOMAIN}/public_html/.htaccess
 

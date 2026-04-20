@@ -11,7 +11,7 @@ services:
     container_name: portalsi-web
     restart: unless-stopped
     ports:
-      - '127.0.0.1:3000:3000'
+      - '127.0.0.1:3005:3000'
     environment:
       - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
