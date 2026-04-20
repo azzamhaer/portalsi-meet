@@ -59,7 +59,7 @@ services:
       # UDP media ports
       - '50000-50200:50000-50200/udp'
     environment:
-      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
+      - "LIVEKIT_KEYS=${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
     networks:
       - portalsi
 
