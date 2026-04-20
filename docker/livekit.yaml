@@ -40,4 +40,3 @@ room:
 
 # Simulcast otomatis aktif di client; konfigurasi tambahan di sini jika perlu
 video:
-  hide_participant_from_token_with_no_permissions: false
