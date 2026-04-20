@@ -7,9 +7,8 @@ rtc:
   port_range_start: 50000
   port_range_end: 50200
   # Public IP for WebRTC — set via env substitution in compose; fallback ke auto-detect kalau kosong
-  use_external_ip: true
-  # Uncomment & set manually if UPnP/STUN auto-detection gagal:
-  # external_ip: "YOUR_VPS_PUBLIC_IP"
+  use_external_ip: false
+  external_ip: "194.233.85.152"
 
   # Tingkatkan stabilitas pada koneksi buruk
   stun_servers:
