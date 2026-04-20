@@ -122,7 +122,6 @@ RewriteEngine On
 # Proxy all requests to Next.js on localhost:3005
 RewriteRule ^(.*)$ http://127.0.0.1:3005/\$1 [P,L]
 EOF
-  chown -R admin:admin /home/${MEET_DOMAIN}/public_html/.htaccess
 
   # 7.2 Create Website for LIVEKIT
   echo "🔧 Membuat website di CyberPanel: ${LIVEKIT_DOMAIN}"
