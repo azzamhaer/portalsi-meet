@@ -53,14 +53,14 @@ apt install -y curl wget git ufw htop vim unzip openssl netcat-openbsd
 # ==========================================
 # 3. INSTALASI DOCKER & DOCKER COMPOSE
 # ==========================================
-if ! command -v docker > /dev/null; then
-  echo "🐳 Menginstal Docker..."
-  apt remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+if ! docker compose version > /dev/null 2>&1; then
+  echo "🐳 Docker Compose tidak ditemukan. Menginstal ulang Docker dari repo resmi..."
+  apt remove -y docker docker-engine docker.io containerd runc docker-compose docker-compose-plugin 2>/dev/null || true
   curl -fsSL https://get.docker.com | sh
   systemctl enable docker
   systemctl start docker
 else
-  echo "🐳 Docker sudah terpasang."
+  echo "🐳 Docker dan Docker Compose sudah terpasang."
 fi
 
 # ==========================================
