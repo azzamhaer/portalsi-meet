@@ -320,8 +320,8 @@ function VideoStage() {
         <Draggable bounds="parent" defaultPosition={{ x: 0, y: 0 }}>
           <div className="absolute !bottom-24 !right-4 sm:!bottom-4 sm:!right-4 z-40 w-28 h-40 sm:w-48 sm:h-32 cursor-move shadow-brutal rounded-2xl overflow-hidden border-2 border-black bg-ink-800 touch-none">
             <ParticipantTile 
-                 participant={localParticipant} 
-                 source={Track.Source.Camera}
+                 trackRef={localCamTrack}
+                 disableSpeakingIndicator
             />
           </div>
         </Draggable>
