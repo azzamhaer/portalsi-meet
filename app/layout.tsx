@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'PortalSI Meet — Video Conference tanpa Login',
+  title: 'Portal SI Meet',
   description:
     'Meeting online berkualitas HD tanpa perlu install aplikasi atau daftar akun. Buat ruang rapat sekarang, share Room ID, selesai.',
   keywords: ['video conference', 'meeting online', 'webinar', 'video call', 'portalsi'],

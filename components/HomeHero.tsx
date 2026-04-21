@@ -79,9 +79,9 @@ export function HomeHero() {
         </h1>
         <p className="mt-8 max-w-xl text-lg text-ink-300 font-bold border-l-4 border-black pl-4 text-left mx-auto lg:mx-0">
           Buat ruang rapat dadakan dalam 2 detik. <br />
-          Gratis, anti-ribet, gak perlu daftar!
+          Gratis, anti-ribet, ga perlu daftar!
         </p>
-        
+
         <div className="mt-8 flex items-center justify-center lg:justify-start gap-4">
           <div className="h-16 w-16 bg-secondary flex items-center justify-center rounded-full border-4 border-black shadow-brutal translate-y-2 animate-bounce">
             <Smile className="h-8 w-8 text-black" />
@@ -96,29 +96,27 @@ export function HomeHero() {
       <div className="w-full max-w-md mx-auto relative">
         {/* Background shapes for comic pop */}
         <div className="absolute -inset-4 bg-secondary rounded-[32px] border-4 border-black shadow-brutal-lg translate-y-4 -translate-x-2 rotate-[-1deg]" />
-        
+
         <div className="relative rounded-3xl border-4 border-black bg-white p-6 shadow-brutal z-10">
           {/* TABS */}
           <div className="mb-6 flex gap-2">
             <button
               type="button"
               onClick={() => setMode('create')}
-              className={`flex-1 rounded-xl py-3 text-sm font-black border-2 border-black transition-all ${
-                mode === 'create'
-                  ? 'bg-primary text-black shadow-brutal translate-y-[-2px]'
-                  : 'bg-white text-ink-300 hover:bg-[#f8f9fa] shadow-brutal-active'
-              }`}
+              className={`flex-1 rounded-xl py-3 text-sm font-black border-2 border-black transition-all ${mode === 'create'
+                ? 'bg-primary text-black shadow-brutal translate-y-[-2px]'
+                : 'bg-white text-ink-300 hover:bg-[#f8f9fa] shadow-brutal-active'
+                }`}
             >
               BUAT ROOM
             </button>
             <button
               type="button"
               onClick={() => setMode('join')}
-              className={`flex-1 rounded-xl py-3 text-sm font-black border-2 border-black transition-all ${
-                mode === 'join'
-                  ? 'bg-secondary text-black shadow-brutal translate-y-[-2px]'
-                  : 'bg-white text-ink-300 hover:bg-[#f8f9fa] shadow-brutal-active'
-              }`}
+              className={`flex-1 rounded-xl py-3 text-sm font-black border-2 border-black transition-all ${mode === 'join'
+                ? 'bg-secondary text-black shadow-brutal translate-y-[-2px]'
+                : 'bg-white text-ink-300 hover:bg-[#f8f9fa] shadow-brutal-active'
+                }`}
             >
               JOIN ROOM
             </button>
@@ -132,7 +130,7 @@ export function HomeHero() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Misal: Spiderman"
+                  placeholder="Misal: Fufufafa"
                   maxLength={40}
                   className="input-field shadow-brutal-active"
                   autoFocus
@@ -164,7 +162,7 @@ export function HomeHero() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Tulis password..."
+                    placeholder="Buat password..."
                     maxLength={64}
                     className="input-field !border-secondary"
                   />
@@ -195,7 +193,7 @@ export function HomeHero() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Siapa ini?"
+                  placeholder="Mau dipanggil siapa?"
                   maxLength={40}
                   className="input-field"
                   autoFocus
@@ -214,7 +212,7 @@ export function HomeHero() {
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-black text-black tracking-widest uppercase">
-                  Password <span className="font-medium text-ink-400">(opsional)</span>
+                  Password <span className="font-medium text-ink-400">(jika ada)</span>
                 </label>
                 <input
                   type="password"
