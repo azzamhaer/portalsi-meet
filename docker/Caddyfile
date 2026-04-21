@@ -1,0 +1,4 @@
+:8443 {
+  tls /etc/certs/fullchain.pem /etc/certs/privkey.pem
+  reverse_proxy livekit:7880
+}
