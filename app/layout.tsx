@@ -36,7 +36,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={inter.variable}>
-      <body className="font-sans">{children}</body>
+      <body className={`${inter.className} theme-comic`}>
+        {children}</body>
     </html>
   );
 }

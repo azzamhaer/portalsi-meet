@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-
+/* DEFAULT (Fallback to light) */
 :root {
   --lk-bg: #ffffff;
   --lk-bg2: #f8f9fa;
@@ -16,83 +16,57 @@
   --lk-border: #000000;
 }
 
-* {
-  -webkit-tap-highlight-color: transparent;
-}
-
-html, body {
-  @apply bg-[#f0f4f8] text-ink-100 antialiased;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-}
-
-body {
+/* 
+===========================================
+   COMIC / LIGHT NEO-BRUTALISM THEME
+===========================================
+*/
+.theme-comic {
+  /* No special variables needed as we fall back to root, but let's be explicit */
   min-height: 100dvh;
-  /* Fun cartoon polka dot background */
+  background-color: #f0f4f8;
+  color: #212529;
   background-image: radial-gradient(#dee2e6 2px, transparent 2px);
   background-size: 24px 24px;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.lk-button {
+.theme-comic .lk-button {
   @apply rounded-xl font-bold transition-all border-2 border-black !text-black shadow-brutal;
   background: white !important;
 }
-
-.lk-button:hover {
+.theme-comic .lk-button:hover {
   @apply translate-x-[2px] translate-y-[2px] shadow-brutal-lg;
 }
-
-.lk-button:active {
+.theme-comic .lk-button:active {
   @apply translate-x-[4px] translate-y-[4px] shadow-brutal-active;
 }
-
-.lk-button.lk-button-primary,
-.lk-button[data-lk-enabled='true'] {
+.theme-comic .lk-button.lk-button-primary,
+.theme-comic .lk-button[data-lk-enabled='true'] {
   background: #FFD700 !important;
   color: #000000 !important;
 }
-
-.lk-button.lk-danger,
-.lk-button[data-lk-enabled='false'] {
+.theme-comic .lk-button.lk-danger,
+.theme-comic .lk-button[data-lk-enabled='false'] {
   background: #ff4757 !important;
   color: white !important;
 }
-
-.lk-control-bar {
+.theme-comic .lk-control-bar {
   background: white !important;
   border-top: 2px solid black !important;
   box-shadow: 0 -4px 0 0 rgba(0,0,0,1) !important;
 }
-
-.lk-participant-tile {
+.theme-comic .lk-participant-tile {
   border-radius: 16px !important;
   overflow: hidden;
   background: white !important;
   border: 2px solid black !important;
   box-shadow: 4px 4px 0 0 rgba(0,0,0,1) !important;
 }
-
-.lk-participant-tile[data-lk-speaking='true'] {
+.theme-comic .lk-participant-tile[data-lk-speaking='true'] {
   box-shadow: 8px 8px 0 0 #FFD700, 4px 4px 0 0 black !important;
   border-color: black !important;
 }
-
-.lk-participant-metadata {
+.theme-comic .lk-participant-metadata {
   background: white !important;
   color: black !important;
   border-top-right-radius: 12px !important;
@@ -105,27 +79,112 @@ body {
   top: auto !important;
   width: auto !important;
 }
-
-.lk-chat {
+.theme-comic .lk-chat {
   background: white !important;
   border-left: 2px solid black !important;
   color: black !important;
 }
-
-.lk-chat-form-input {
+.theme-comic .lk-chat-form-input {
   background: white !important;
   border: 2px solid black !important;
   border-radius: 12px !important;
   color: black !important;
   box-shadow: 2px 2px 0 0 black !important;
 }
-
-.lk-chat-form-input:focus {
+.theme-comic .lk-chat-form-input:focus {
   border-color: #FFD700 !important;
   outline: none !important;
 }
 
-/* Utility components */
+/* 
+===========================================
+   GOOGLE MEET / DARK PROFESSIONAL THEME
+===========================================
+*/
+.theme-meet {
+  --lk-bg: #202124;
+  --lk-bg2: #3c4043;
+  --lk-fg: #ffffff;
+  --lk-accent-fg: #ffffff;
+  --lk-accent-bg: #8ab4f8;
+  --lk-accent2-bg: #81c995;
+  --lk-danger-bg: #ea4335;
+  --lk-control-bg: #3c4043;
+  --lk-control-hover-bg: #4a4d51;
+  --lk-border: #5f6368;
+  
+  background-color: #202124;
+  color: #ffffff;
+}
+
+.theme-meet .lk-button {
+  background: #3c4043 !important;
+  color: white !important;
+  border-radius: 9999px !important; /* Fully rounded like Google Meet */
+  border: none !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease;
+}
+.theme-meet .lk-button:hover {
+  background: #4a4d51 !important;
+}
+.theme-meet .lk-button.lk-danger,
+.theme-meet .lk-button[data-lk-enabled='false'] {
+  background: #ea4335 !important;
+  color: white !important;
+}
+
+.theme-meet .lk-participant-tile {
+  border-radius: 12px !important;
+  overflow: hidden;
+  background: #3c4043 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+}
+.theme-meet .lk-participant-tile[data-lk-speaking='true'] {
+  border: 3px solid #8ab4f8 !important;
+}
+
+.theme-meet .lk-participant-metadata {
+  background: rgba(0, 0, 0, 0.6) !important;
+  color: white !important;
+  border-radius: 6px !important;
+  padding: 2px 6px !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  bottom: 12px !important;
+  left: 12px !important;
+  border: none !important;
+  backdrop-filter: blur(4px);
+}
+
+/* Global / Common */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  antialiased;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(200, 200, 200, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(200, 200, 200, 0.4);
+}
+
+/* Utility components scoped to comic primarily used in Home/RoomClient */
 @layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl border-2 border-black bg-primary px-5 py-3 font-bold text-black shadow-brutal transition-all hover:-translate-y-1 hover:shadow-brutal-lg active:translate-x-1 active:translate-y-1 active:shadow-brutal-active disabled:opacity-50 disabled:cursor-not-allowed;
@@ -144,24 +203,4 @@ body {
   }
 }
 
-/* Grid overlay for tiles */
-.video-grid {
-  display: grid;
-  gap: 12px;
-  width: 100%;
-  height: 100%;
-}
-@media (min-width: 640px) {
-  .video-grid { gap: 16px; }
-}
-
-.glass {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 2px solid black;
-  box-shadow: 4px 4px 0 0 black;
-}
-
-/* Hide elements until interactive */
 .no-js-hidden { display: none; }
