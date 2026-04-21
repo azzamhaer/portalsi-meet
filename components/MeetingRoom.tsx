@@ -14,6 +14,7 @@ import {
   Chat,
   ConnectionStateToast,
 } from '@livekit/components-react';
+import Draggable from 'react-draggable';
 import {
   RoomEvent,
   Track,
@@ -173,7 +174,7 @@ function MeetingShell({
   return (
     <div className="flex min-h-dvh flex-col bg-ink-900">
       {/* TOP BAR */}
-      <header className="flex items-center justify-between border-b border-white/5 bg-ink-800/60 backdrop-blur-xl px-3 py-2.5 sm:px-5 sm:py-3">
+      <header className="flex items-center justify-between border-b-2 border-black bg-white px-3 py-2.5 sm:px-5 sm:py-3 shadow-brutal z-20">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-brand">
             <span className="text-ink-900 font-black">P</span>
@@ -230,12 +231,12 @@ function MeetingShell({
 
         {/* SIDEBAR - CHAT */}
         {showChat && (
-          <aside className="fixed md:relative inset-0 md:inset-auto z-30 md:z-auto w-full md:w-[360px] border-l border-white/5 bg-ink-800 backdrop-blur-xl md:flex flex-col animate-slide-up md:animate-none">
-            <div className="flex items-center justify-between border-b border-white/5 p-4">
-              <h2 className="text-sm font-semibold flex items-center gap-2">
+          <aside className="fixed md:relative inset-0 md:inset-auto z-30 md:z-auto w-full md:w-[360px] border-l-2 border-black bg-white md:flex flex-col animate-slide-up md:animate-none">
+            <div className="flex items-center justify-between border-b-2 border-black p-4">
+              <h2 className="text-sm font-black flex items-center gap-2 text-black uppercase tracking-wider">
                 <MessageSquare className="h-4 w-4 text-primary" /> Chat
               </h2>
-              <button onClick={() => setShowChat(false)} className="rounded-lg p-1.5 hover:bg-white/5">
+              <button onClick={() => setShowChat(false)} className="rounded-lg p-1.5 hover:bg-ink-800 border-2 border-transparent hover:border-black transition-all">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -247,14 +248,14 @@ function MeetingShell({
 
         {/* SIDEBAR - PARTICIPANTS */}
         {showParticipants && (
-          <aside className="fixed md:relative inset-0 md:inset-auto z-30 md:z-auto w-full md:w-[320px] border-l border-white/5 bg-ink-800 backdrop-blur-xl flex flex-col animate-slide-up md:animate-none">
-            <div className="flex items-center justify-between border-b border-white/5 p-4">
-              <h2 className="text-sm font-semibold flex items-center gap-2">
+          <aside className="fixed md:relative inset-0 md:inset-auto z-30 md:z-auto w-full md:w-[320px] border-l-2 border-black bg-white flex flex-col animate-slide-up md:animate-none">
+            <div className="flex items-center justify-between border-b-2 border-black p-4">
+              <h2 className="text-sm font-black flex items-center gap-2 text-black uppercase tracking-wider">
                 <Users className="h-4 w-4 text-secondary" /> Peserta ({participants.length})
               </h2>
               <button
                 onClick={() => setShowParticipants(false)}
-                className="rounded-lg p-1.5 hover:bg-white/5"
+                className="rounded-lg p-1.5 hover:bg-ink-800 border-2 border-transparent hover:border-black transition-all"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -268,6 +269,7 @@ function MeetingShell({
 }
 
 function VideoStage() {
+  const { localParticipant } = useLocalParticipant();
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -276,14 +278,55 @@ function VideoStage() {
     { onlySubscribed: false }
   );
 
+  // Filter out local camera for PiP
+  const localCamTrack = tracks.find(
+    (t) => t.participant.identity === localParticipant.identity && t.source === Track.Source.Camera
+  );
+
+  let gridTracks = tracks.filter((t) => {
+    if (t.participant.identity === localParticipant.identity && t.source === Track.Source.Camera) {
+      return false; // separate local camera
+    }
+    return true;
+  });
+
+  // Limit to max 8 items on screen to prevent tiny video squares on Mobile
+  if (gridTracks.length > 8) {
+    gridTracks = gridTracks.slice(0, 8);
+  }
+
+  // If we are completely alone, just show our camera in the main grid
+  const isAlone = gridTracks.length === 0;
+
+  if (isAlone) {
+    return (
+      <GridLayout tracks={tracks} className="h-full outline-none" style={{ height: '100%' }}>
+        <ParticipantTile />
+      </GridLayout>
+    );
+  }
+
   return (
-    <GridLayout
-      tracks={tracks}
-      className="h-full"
-      style={{ height: '100%' }}
-    >
-      <ParticipantTile />
-    </GridLayout>
+    <div className="relative h-full w-full">
+      <GridLayout
+        tracks={gridTracks}
+        className="h-full outline-none"
+        style={{ height: '100%' }}
+      >
+        <ParticipantTile />
+      </GridLayout>
+
+      {localCamTrack && (
+        <Draggable bounds="parent" defaultPosition={{ x: 0, y: 0 }}>
+          <div className="absolute !bottom-24 !right-4 sm:!bottom-4 sm:!right-4 z-40 w-28 h-40 sm:w-48 sm:h-32 cursor-move shadow-brutal rounded-2xl overflow-hidden border-2 border-black bg-ink-800 touch-none">
+            <ParticipantTile 
+                 participant={localParticipant} 
+                 source={Track.Source.Camera}
+            />
+          </div>
+        </Draggable>
+      )}
+    </div>
   );
 }
 
@@ -300,11 +343,11 @@ function ConnectionBadge() {
   }, [room]);
 
   const config: Record<ConnectionState, { label: string; color: string; dot: string }> = {
-    [ConnectionState.Disconnected]: { label: 'Offline', color: 'text-red-300 border-red-500/30 bg-red-500/10', dot: 'bg-red-400' },
-    [ConnectionState.Connecting]: { label: 'Menghubungkan', color: 'text-primary border-primary/30 bg-primary/10', dot: 'bg-primary animate-pulse' },
-    [ConnectionState.Connected]: { label: 'Stabil', color: 'text-secondary border-secondary/30 bg-secondary/10', dot: 'bg-secondary' },
-    [ConnectionState.Reconnecting]: { label: 'Menyambung ulang', color: 'text-primary border-primary/30 bg-primary/10', dot: 'bg-primary animate-pulse' },
-    [ConnectionState.SignalReconnecting]: { label: 'Sinkronisasi', color: 'text-primary border-primary/30 bg-primary/10', dot: 'bg-primary animate-pulse' },
+    [ConnectionState.Disconnected]: { label: 'Offline', color: 'text-black border-2 border-black bg-red-400 shadow-brutal', dot: 'bg-black' },
+    [ConnectionState.Connecting]: { label: 'Menghubungkan', color: 'text-black border-2 border-black bg-primary shadow-brutal', dot: 'bg-black animate-pulse' },
+    [ConnectionState.Connected]: { label: 'Stabil', color: 'text-black border-2 border-black bg-secondary shadow-brutal', dot: 'bg-black' },
+    [ConnectionState.Reconnecting]: { label: 'Menyambung ulang', color: 'text-black border-2 border-black bg-primary shadow-brutal', dot: 'bg-black animate-pulse' },
+    [ConnectionState.SignalReconnecting]: { label: 'Sinkronisasi', color: 'text-black border-2 border-black bg-primary shadow-brutal', dot: 'bg-black animate-pulse' },
   };
 
   const c = config[state];
@@ -332,7 +375,7 @@ function BottomBar({
   isHost: boolean;
 }) {
   return (
-    <div className="relative z-10 border-t border-white/5 bg-ink-800/80 backdrop-blur-xl">
+    <div className="relative z-10 border-t-2 border-black bg-white shadow-[0_-4px_0_0_#000]">
       <div className="flex items-center justify-between gap-2 px-2 py-2 sm:px-4 sm:py-3">
         {/* Center LiveKit controls */}
         <div className="flex-1 flex justify-center">
@@ -352,7 +395,7 @@ function BottomBar({
           </ToolButton>
           <button
             onClick={onLeave}
-            className="inline-flex items-center gap-2 rounded-xl bg-red-500 hover:bg-red-600 px-3 py-2.5 font-medium text-white transition active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl bg-red-500 border-2 border-black px-3 py-2.5 font-bold text-white transition-all shadow-brutal hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-brutal-lg active:translate-y-[4px] active:translate-x-[4px] active:shadow-brutal-active"
             aria-label="Keluar"
           >
             <PhoneOff className="h-5 w-5" />
@@ -379,8 +422,8 @@ function ToolButton({
     <button
       onClick={onClick}
       aria-label={label}
-      className={`inline-flex items-center justify-center rounded-xl p-2.5 transition active:scale-95 ${
-        active ? 'bg-primary text-ink-900' : 'bg-ink-700 hover:bg-ink-600 text-ink-100'
+      className={`inline-flex items-center justify-center rounded-xl p-2.5 font-bold transition-all border-2 border-black shadow-brutal hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-brutal-lg active:shadow-brutal-active active:translate-y-[4px] active:translate-x-[4px] ${
+        active ? 'bg-primary text-black' : 'bg-white text-black'
       }`}
     >
       {children}
@@ -417,18 +460,18 @@ function ParticipantList({ isHost }: { isHost: boolean }) {
         return (
           <div
             key={p.identity}
-            className="flex items-center gap-3 rounded-xl border border-white/5 bg-ink-900/60 p-2.5"
+            className="flex items-center gap-3 rounded-xl border-2 border-black bg-white shadow-brutal-lg p-2.5"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-brand text-ink-900 font-bold text-sm">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-primary text-black font-black text-sm">
               {p.name?.charAt(0).toUpperCase() || '?'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate flex items-center gap-1.5">
+              <p className="text-sm font-black truncate flex items-center gap-1.5 text-black">
                 {p.name || 'Anonim'}
-                {isLocal && <span className="text-xs text-ink-400">(kamu)</span>}
+                {isLocal && <span className="text-[10px] uppercase text-black font-bold p-0.5 bg-ink-800 rounded border border-black">ME</span>}
                 {isTheHost && <Crown className="h-3 w-3 text-primary" />}
               </p>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 font-bold">
                 <StatusDot label="Mic" active={!!mic && !mic.isMuted} />
                 <StatusDot label="Cam" active={!!cam && !cam.isMuted} />
               </div>
@@ -436,7 +479,7 @@ function ParticipantList({ isHost }: { isHost: boolean }) {
             {isHost && !isLocal && !isTheHost && (
               <button
                 onClick={() => kickParticipant(p.identity)}
-                className="rounded-lg p-1.5 text-red-400 hover:bg-red-500/10 transition"
+                className="rounded-lg p-1.5 text-black border-2 border-black bg-red-400 hover:bg-red-500 shadow-brutal transition-all"
                 title="Keluarkan peserta"
               >
                 <X className="h-4 w-4" />

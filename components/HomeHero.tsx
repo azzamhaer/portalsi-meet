@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Loader2, Video, ArrowRight, Shield, Users } from 'lucide-react';
+import { Loader2, Video, ArrowRight, Smile } from 'lucide-react';
 import { normalizeRoomId, isValidRoomId } from '@/lib/room-id';
 
 export function HomeHero() {
@@ -67,199 +67,176 @@ export function HomeHero() {
   }
 
   return (
-    <section className="relative overflow-hidden">
-      {/* ambient glow */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-0 h-[500px] w-[900px] -translate-x-1/2 rounded-full bg-primary/10 blur-[120px]" />
-        <div className="absolute right-0 bottom-0 h-[400px] w-[600px] rounded-full bg-secondary/10 blur-[120px]" />
-      </div>
-
-      <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-20 lg:py-28">
-        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-          {/* LEFT: copy */}
-          <div className="animate-fade-in">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              Gratis &middot; Tanpa Daftar &middot; HD
-            </div>
-            <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
-              Meeting online
-              <br />
-              <span className="bg-gradient-brand bg-clip-text text-transparent">
-                lebih cepat
-              </span>
-              , tanpa ribet.
-            </h1>
-            <p className="mt-5 max-w-xl text-base text-ink-300 sm:text-lg leading-relaxed">
-              Buat ruang rapat dalam 2 detik. Bagikan Room ID. Selesai. Langsung jalan di browser
-              desktop dan mobile, tanpa install aplikasi apa pun.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Feature icon={<Users className="h-4 w-4" />} label="Hingga 50 peserta" />
-              <Feature icon={<Shield className="h-4 w-4" />} label="Password & Lobby" />
-              <Feature icon={<Video className="h-4 w-4" />} label="HD + Screen Share" />
-            </div>
+    <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+      {/* LEFT: TEXT CONTENT */}
+      <div className="text-center lg:text-left">
+        <h1 className="text-5xl font-black tracking-tight sm:text-7xl !leading-[1.1] text-black">
+          RAPAT<br />
+          <span className="inline-block bg-primary px-4 py-1 border-4 border-black rotate-[-2deg] shadow-brutal-lg mt-2 mb-2">
+            MENDADAK?
+          </span>
+          <br />GAS AJA!
+        </h1>
+        <p className="mt-8 max-w-xl text-lg text-ink-300 font-bold border-l-4 border-black pl-4 text-left mx-auto lg:mx-0">
+          Buat ruang rapat dadakan dalam 2 detik. <br />
+          Gratis, anti-ribet, gak perlu daftar!
+        </p>
+        
+        <div className="mt-8 flex items-center justify-center lg:justify-start gap-4">
+          <div className="h-16 w-16 bg-secondary flex items-center justify-center rounded-full border-4 border-black shadow-brutal translate-y-2 animate-bounce">
+            <Smile className="h-8 w-8 text-black" />
           </div>
-
-          {/* RIGHT: card */}
-          <div className="animate-slide-up">
-            <div className="relative">
-              <div className="absolute -inset-1 rounded-3xl bg-gradient-brand opacity-20 blur-xl" />
-              <div className="relative card border-white/10 bg-ink-800/90">
-                {/* Tabs */}
-                <div className="mb-6 flex rounded-xl bg-ink-900 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setMode('create')}
-                    className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
-                      mode === 'create'
-                        ? 'bg-primary text-ink-900 shadow-lg shadow-primary/20'
-                        : 'text-ink-300 hover:text-white'
-                    }`}
-                  >
-                    Buat Meeting
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMode('join')}
-                    className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
-                      mode === 'join'
-                        ? 'bg-secondary text-white shadow-lg shadow-secondary/20'
-                        : 'text-ink-300 hover:text-white'
-                    }`}
-                  >
-                    Gabung Meeting
-                  </button>
-                </div>
-
-                {mode === 'create' ? (
-                  <form onSubmit={handleCreate} className="space-y-4">
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-ink-200">Nama Kamu</label>
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="cth. Budi Santoso"
-                        maxLength={40}
-                        className="input-field"
-                        autoFocus
-                      />
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={usePassword}
-                          onChange={(e) => setUsePassword(e.target.checked)}
-                          className="h-4 w-4 rounded border-white/20 bg-ink-900 text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm text-ink-200">Password</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={useLobby}
-                          onChange={(e) => setUseLobby(e.target.checked)}
-                          className="h-4 w-4 rounded border-white/20 bg-ink-900 text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm text-ink-200">Waiting Room</span>
-                      </label>
-                    </div>
-                    {usePassword && (
-                      <div className="animate-fade-in">
-                        <input
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="Password ruang"
-                          maxLength={64}
-                          className="input-field"
-                        />
-                      </div>
-                    )}
-                    {error && (
-                      <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                        {error}
-                      </p>
-                    )}
-                    <button type="submit" disabled={loading} className="btn-primary w-full text-base py-3.5">
-                      {loading ? (
-                        <>
-                          <Loader2 className="h-5 w-5 animate-spin" /> Membuat ruang...
-                        </>
-                      ) : (
-                        <>
-                          <Video className="h-5 w-5" /> Mulai Meeting Sekarang
-                          <ArrowRight className="h-4 w-4" />
-                        </>
-                      )}
-                    </button>
-                    <p className="text-center text-xs text-ink-400">
-                      Dengan melanjutkan, kamu setuju media di-stream melalui server kami.
-                    </p>
-                  </form>
-                ) : (
-                  <form onSubmit={handleJoin} className="space-y-4">
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-ink-200">Nama Kamu</label>
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="cth. Siti Rahma"
-                        maxLength={40}
-                        className="input-field"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-ink-200">Room ID</label>
-                      <input
-                        type="text"
-                        value={roomId}
-                        onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                        placeholder="cth. ABCXYZ"
-                        maxLength={12}
-                        className="input-field uppercase tracking-[0.3em] font-mono text-lg font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-ink-200">
-                        Password <span className="font-normal text-ink-400">(jika ada)</span>
-                      </label>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Opsional"
-                        maxLength={64}
-                        className="input-field"
-                      />
-                    </div>
-                    {error && (
-                      <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                        {error}
-                      </p>
-                    )}
-                    <button type="submit" className="btn-secondary w-full text-base py-3.5">
-                      <ArrowRight className="h-5 w-5" /> Gabung Meeting
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
+          <div className="h-12 w-12 bg-primary flex items-center justify-center rounded-full border-4 border-black shadow-brutal animate-bounce" style={{ animationDelay: '200ms' }}>
+            <Video className="h-5 w-5 text-black" />
           </div>
         </div>
       </div>
-    </section>
-  );
-}
 
-function Feature({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-ink-800/60 px-3 py-1.5 text-sm text-ink-200">
-      <span className="text-primary">{icon}</span>
-      {label}
-    </span>
+      {/* RIGHT: ACTION FORM */}
+      <div className="w-full max-w-md mx-auto relative">
+        {/* Background shapes for comic pop */}
+        <div className="absolute -inset-4 bg-secondary rounded-[32px] border-4 border-black shadow-brutal-lg translate-y-4 -translate-x-2 rotate-[-1deg]" />
+        
+        <div className="relative rounded-3xl border-4 border-black bg-white p-6 shadow-brutal z-10">
+          {/* TABS */}
+          <div className="mb-6 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('create')}
+              className={`flex-1 rounded-xl py-3 text-sm font-black border-2 border-black transition-all ${
+                mode === 'create'
+                  ? 'bg-primary text-black shadow-brutal translate-y-[-2px]'
+                  : 'bg-white text-ink-300 hover:bg-[#f8f9fa] shadow-brutal-active'
+              }`}
+            >
+              BUAT ROOM
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('join')}
+              className={`flex-1 rounded-xl py-3 text-sm font-black border-2 border-black transition-all ${
+                mode === 'join'
+                  ? 'bg-secondary text-black shadow-brutal translate-y-[-2px]'
+                  : 'bg-white text-ink-300 hover:bg-[#f8f9fa] shadow-brutal-active'
+              }`}
+            >
+              JOIN ROOM
+            </button>
+          </div>
+
+          {mode === 'create' ? (
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-black text-black tracking-widest uppercase">Nama Kamu</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Misal: Spiderman"
+                  maxLength={40}
+                  className="input-field shadow-brutal-active"
+                  autoFocus
+                />
+              </div>
+              <div className="flex items-center gap-4 py-2 border-2 border-black rounded-xl px-4 bg-[#f8f9fa]">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={usePassword}
+                    onChange={(e) => setUsePassword(e.target.checked)}
+                    className="h-5 w-5 rounded border-2 border-black focus:ring-0 accent-primary"
+                  />
+                  <span className="text-sm font-bold text-black">Password</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={useLobby}
+                    onChange={(e) => setUseLobby(e.target.checked)}
+                    className="h-5 w-5 rounded border-2 border-black focus:ring-0 accent-secondary"
+                  />
+                  <span className="text-sm font-bold text-black">Lobby</span>
+                </label>
+              </div>
+              {usePassword && (
+                <div className="animate-fade-in">
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Tulis password..."
+                    maxLength={64}
+                    className="input-field !border-secondary"
+                  />
+                </div>
+              )}
+              {error && (
+                <div className="rounded-xl border-2 border-black bg-red-400 p-3 text-sm font-bold text-black shadow-brutal">
+                  WOOPS! {error}
+                </div>
+              )}
+              <button type="submit" disabled={loading} className="btn-primary w-full text-lg py-4 !bg-primary uppercase tracking-widest mt-2">
+                {loading ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin" /> Sedang Buat...
+                  </>
+                ) : (
+                  <>
+                    Mulai Sekarang <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleJoin} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-black text-black tracking-widest uppercase">Nama Kamu</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Siapa ini?"
+                  maxLength={40}
+                  className="input-field"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-black text-black tracking-widest uppercase">Room ID</label>
+                <input
+                  type="text"
+                  value={roomId}
+                  onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+                  placeholder="ABCDEF"
+                  maxLength={12}
+                  className="input-field text-center uppercase tracking-[0.4em] font-black text-2xl !py-4"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-black text-black tracking-widest uppercase">
+                  Password <span className="font-medium text-ink-400">(opsional)</span>
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Ketik rahasia..."
+                  maxLength={64}
+                  className="input-field"
+                />
+              </div>
+              {error && (
+                <div className="rounded-xl border-2 border-black bg-red-400 p-3 text-sm font-bold text-black shadow-brutal">
+                  WOOPS! {error}
+                </div>
+              )}
+              <button type="submit" className="btn-secondary w-full text-lg py-4 !bg-secondary uppercase tracking-widest mt-2">
+                <ArrowRight className="h-6 w-6" /> LET'S GO!
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

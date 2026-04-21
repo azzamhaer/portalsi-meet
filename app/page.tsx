@@ -1,82 +1,48 @@
 import Link from 'next/link';
 import { HomeHero } from '@/components/HomeHero';
-import { FeatureGrid } from '@/components/FeatureGrid';
 
 export default function HomePage() {
   return (
-    <main className="min-h-dvh">
-      {/* NAV */}
-      <header className="sticky top-0 z-40 border-b border-white/5 bg-ink-900/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 font-bold">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-brand shadow-lg shadow-primary/30">
-              <span className="text-ink-900 font-black text-lg">P</span>
+    <main className="min-h-dvh flex flex-col pt-8">
+      {/* HEADER COMIK STYLE */}
+      <header className="mx-auto w-full max-w-5xl px-4 sm:px-6">
+        <div className="flex items-center justify-between rounded-2xl border-2 border-black bg-white px-5 py-4 shadow-brutal">
+          <Link href="/" className="flex items-center gap-3 font-bold group">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-black bg-primary shadow-brutal transition-transform group-hover:-translate-y-1">
+              <span className="text-black font-black text-xl">P</span>
             </div>
             <div className="flex flex-col leading-none">
-              <span className="text-base font-bold">PortalSI Meet</span>
-              <span className="text-[10px] font-medium text-ink-400 tracking-wider uppercase">
-                Video Conference
+              <span className="text-lg font-black text-black">PortalSI Meet</span>
+              <span className="text-[10px] font-bold text-ink-400 tracking-wider uppercase mt-1">
+                Comic Edition
               </span>
             </div>
           </Link>
-          <div className="flex items-center gap-2">
-            <a
-              href="#fitur"
-              className="hidden rounded-lg px-3 py-2 text-sm text-ink-200 hover:text-white hover:bg-white/5 transition sm:inline-flex"
-            >
-              Fitur
-            </a>
-            <a
-              href="#cara-pakai"
-              className="hidden rounded-lg px-3 py-2 text-sm text-ink-200 hover:text-white hover:bg-white/5 transition sm:inline-flex"
-            >
-              Cara Pakai
-            </a>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 text-xs font-medium text-secondary">
-              <span className="h-1.5 w-1.5 rounded-full bg-secondary animate-pulse" />
-              Online
+          
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border-2 border-black bg-secondary px-3 py-1.5 text-xs font-bold text-black shadow-brutal">
+              <span className="h-2 w-2 rounded-full bg-black animate-pulse" />
+              100% Free
             </span>
           </div>
         </div>
       </header>
 
-      <HomeHero />
-      <FeatureGrid />
-
-      {/* CARA PAKAI */}
-      <section id="cara-pakai" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">
-            Meeting dalam <span className="text-primary">3 langkah</span>
-          </h2>
-          <p className="mt-4 text-ink-300">Tanpa install, tanpa daftar. Buka browser, selesai.</p>
-        </div>
-        <div className="mt-12 grid gap-6 sm:grid-cols-3">
-          {[
-            { step: '1', title: 'Buat Ruang', desc: 'Klik tombol "Mulai Meeting" dan dapatkan Room ID 6 huruf.' },
-            { step: '2', title: 'Bagikan ID', desc: 'Kirim Room ID ke peserta via WhatsApp, email, atau chat apa pun.' },
-            { step: '3', title: 'Mulai Meeting', desc: 'Peserta masukkan Room ID dan langsung bergabung. Selesai.' },
-          ].map((s) => (
-            <div key={s.step} className="card group transition-all hover:border-primary/40 hover:bg-ink-800/80">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-brand text-ink-900 font-black text-xl">
-                {s.step}
-              </div>
-              <h3 className="mt-4 text-xl font-semibold">{s.title}</h3>
-              <p className="mt-2 text-ink-300 leading-relaxed">{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* HERO SECTION */}
+      <div className="flex-1 flex flex-col justify-center w-full max-w-5xl mx-auto py-12 px-4 sm:px-6">
+        <HomeHero />
+      </div>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 sm:flex-row sm:px-6">
-          <p className="text-sm text-ink-400">
-            &copy; {new Date().getFullYear()} PortalSI Meet. Open, fast, private.
+      <footer className="w-full max-w-5xl mx-auto px-4 sm:px-6 pb-8">
+        <div className="rounded-2xl border-2 border-black bg-white p-4 shadow-brutal text-center flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm font-bold text-ink-300">
+            &copy; {new Date().getFullYear()} PortalSI Meet
           </p>
-          <p className="text-xs text-ink-500">
-            Powered by WebRTC &middot; LiveKit &middot; Next.js
-          </p>
+          <div className="flex gap-2">
+            <span className="inline-block rounded-lg border-2 border-black bg-[#f8f9fa] px-2 py-1 text-xs font-bold shadow-brutal-active">🚀 No Install</span>
+            <span className="inline-block rounded-lg border-2 border-black bg-[#f8f9fa] px-2 py-1 text-xs font-bold shadow-brutal-active">🔒 Secure</span>
+          </div>
         </div>
       </footer>
     </main>

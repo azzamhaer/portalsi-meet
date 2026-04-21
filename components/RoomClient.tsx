@@ -133,12 +133,12 @@ export function RoomClient({ roomId }: { roomId: string }) {
         <Link href="/" className="mb-4 inline-flex items-center gap-2 text-sm text-ink-300 hover:text-white transition">
           <ArrowLeft className="h-4 w-4" /> Kembali
         </Link>
-        <div className="card border-white/10 bg-ink-800/90 relative overflow-hidden">
-          <div className="absolute -top-20 -right-20 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+        <div className="card relative overflow-hidden">
+          <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-secondary border-4 border-black" />
           <div className="relative">
-            <div className="mb-2 flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-brand">
-                <Video className="h-5 w-5 text-ink-900" />
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary border-2 border-black shadow-brutal active:shadow-brutal-active">
+                <Video className="h-6 w-6 text-black" />
               </div>
               <div>
                 <p className="text-xs text-ink-400">Bergabung ke Ruang</p>
@@ -196,12 +196,11 @@ export function RoomClient({ roomId }: { roomId: string }) {
 function LoadingScreen({ label }: { label: string }) {
   return (
     <main className="min-h-dvh flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4 bg-white p-6 rounded-3xl border-4 border-black shadow-brutal-lg">
         <div className="relative">
-          <div className="absolute inset-0 rounded-full bg-primary/30 blur-2xl animate-pulse" />
-          <Loader2 className="relative h-12 w-12 animate-spin text-primary" />
+          <Loader2 className="relative h-12 w-12 animate-spin text-black" />
         </div>
-        <p className="text-ink-300 font-medium">{label}</p>
+        <p className="text-black font-black uppercase tracking-widest">{label}</p>
       </div>
     </main>
   );
@@ -210,14 +209,14 @@ function LoadingScreen({ label }: { label: string }) {
 function ErrorScreen({ title, message }: { title: string; message: string }) {
   return (
     <main className="min-h-dvh flex items-center justify-center p-4">
-      <div className="card max-w-md w-full text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20">
-          <span className="text-4xl">⚠️</span>
+      <div className="card max-w-md w-full text-center !bg-[#ffeaa7]">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-400 border-4 border-black shadow-brutal translate-y-[-20px]">
+          <span className="text-4xl leading-none">😲</span>
         </div>
-        <h1 className="mt-4 text-xl font-bold">{title}</h1>
-        <p className="mt-2 text-ink-300">{message}</p>
-        <Link href="/" className="btn-primary mt-6 w-full">
-          Kembali ke Beranda
+        <h1 className="text-2xl font-black text-black uppercase tracking-widest">{title}</h1>
+        <p className="mt-2 font-bold text-ink-300 border-2 border-black bg-white p-2 rounded-xl">{message}</p>
+        <Link href="/" className="btn-primary mt-6 w-full text-lg uppercase">
+          KEMBALI KE PORTAL
         </Link>
       </div>
     </main>
