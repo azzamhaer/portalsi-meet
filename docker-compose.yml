@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        NEXT_PUBLIC_LIVEKIT_URL: wss://livekit.portalsi.com:8443
+        NEXT_PUBLIC_LIVEKIT_URL: wss://livekit.portalsi.com
     image: portalsi-meet-web:latest
     container_name: portalsi-web
     restart: unless-stopped
@@ -15,7 +15,7 @@ services:
       - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
       - LIVEKIT_HTTP_URL=http://livekit:7880
-      - NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.portalsi.com:8443
+      - NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.portalsi.com
     depends_on:
       redis:
         condition: service_healthy
@@ -46,11 +46,8 @@ services:
     command: --config /etc/livekit.yaml --node-ip=194.233.85.152
     volumes:
       - ./docker/livekit.yaml:/etc/livekit.yaml:ro
-      - /etc/letsencrypt/live/livekit.portalsi.com:/etc/certs:ro
-      - /etc/letsencrypt/archive:/etc/letsencrypt/archive:ro
     ports:
       - "127.0.0.1:7880:7880"
-      - "8443:7880"
       - "7881:7881"
       - "50000-50200:50000-50200/udp"
     environment:
