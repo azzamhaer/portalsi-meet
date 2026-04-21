@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        NEXT_PUBLIC_LIVEKIT_URL: wss://livekit.portalsi.com
+        NEXT_PUBLIC_LIVEKIT_URL: wss://livekit.portalsi.com:8443
     image: portalsi-meet-web:latest
     container_name: portalsi-web
     restart: unless-stopped
@@ -15,7 +15,7 @@ services:
       - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
       - LIVEKIT_HTTP_URL=http://livekit:7880
-      - NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.portalsi.com
+      - NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.portalsi.com:8443
     depends_on:
       redis:
         condition: service_healthy
@@ -64,6 +64,21 @@ services:
       -n --log-file=stdout --listening-port=3478 --tls-listening-port=5349 --min-port=49160 --max-port=49200
       --realm=${TURN_REALM} --external-ip=194.233.85.152 --user=${TURN_USER}:${TURN_PASSWORD}
       --lt-cred-mech --fingerprint --no-multicast-peers --no-cli --no-tlsv1 --no-tlsv1_1
+
+  caddy:
+    image: caddy:alpine
+    container_name: portalsi-caddy
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /etc/letsencrypt/live/livekit.portalsi.com:/etc/certs:ro
+      - /etc/letsencrypt/archive:/etc/letsencrypt/archive:ro
+    depends_on:
+      - livekit
+    networks:
+      - portalsi
 
 networks:
   portalsi:
