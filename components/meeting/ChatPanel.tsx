@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import type { ChatMsg } from '../MeetingRoom';
 
-export function ChatPanel({ messages, localIdentity, onSend, onEdit, onDelete, onClose }: {
+export function ChatPanel({ messages, localIdentity, onSend, onEdit, onDelete, onClose, disabled }: {
   messages: ChatMsg[]; localIdentity: string;
   onSend: (text: string) => void; onEdit: (id: string, text: string) => void;
-  onDelete: (id: string) => void; onClose: () => void;
+  onDelete: (id: string) => void; onClose: () => void; disabled?: boolean;
 }) {
   const [input, setInput] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -46,11 +46,11 @@ export function ChatPanel({ messages, localIdentity, onSend, onEdit, onDelete, o
         {messages.map(msg => {
           const isMe = msg.senderIdentity === localIdentity;
           return (
-            <div key={msg.id} className={`group relative ${isMe ? 'pl-8' : 'pr-8'}`}>
-              <div className={`rounded-2xl px-3.5 py-2.5 text-sm ${
+            <div key={msg.id} className={`group relative ${isMe ? 'pl-8 flex justify-end' : 'pr-8'}`}>
+              <div className={`rounded-2xl px-3.5 py-2.5 text-sm text-left ${
                 msg.deleted ? 'bg-white/[0.03] border border-white/[0.04]'
-                : isMe ? 'bg-[#8ab4f8]/15 ml-auto' : 'bg-white/[0.06]'
-              } ${isMe ? 'text-right' : ''}`}>
+                : isMe ? 'bg-[#8ab4f8]/15' : 'bg-white/[0.06]'
+              }`}>
                 <p className={`text-[11px] font-semibold mb-1 ${isMe ? 'text-[#8ab4f8]' : 'text-[#81c995]'}`}>
                   {msg.senderName} {isMe && '(Anda)'}
                 </p>
@@ -59,7 +59,7 @@ export function ChatPanel({ messages, localIdentity, onSend, onEdit, onDelete, o
                 ) : (
                   <>
                     <p className="text-white/85 text-[13px] break-words whitespace-pre-wrap">{msg.text}</p>
-                    <div className={`flex items-center gap-1.5 mt-1 text-[10px] text-white/25 ${isMe ? 'justify-end' : ''}`}>
+                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-white/25">
                       <span>{fmtTime(msg.ts)}</span>
                       {msg.edited && <span>· diedit {msg.editedAt && fmtTime(msg.editedAt)}</span>}
                     </div>
@@ -94,15 +94,19 @@ export function ChatPanel({ messages, localIdentity, onSend, onEdit, onDelete, o
             <button onClick={cancelEdit} className="text-white/40 hover:text-white/70">Batal</button>
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <input value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-            placeholder="Ketik pesan..." className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-[#8ab4f8]/30 transition-all" />
-          <button onClick={handleSend} disabled={!input.trim()}
-            className={`p-2.5 rounded-full transition-all ${input.trim() ? 'bg-[#8ab4f8] text-black' : 'bg-white/[0.05] text-white/20'}`}>
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
+        {disabled ? (
+          <p className="text-center text-xs text-white/25 py-2">Chat dinonaktifkan oleh host</p>
+        ) : (
+          <div className="flex items-center gap-2">
+            <input value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
+              placeholder="Ketik pesan..." className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-[#8ab4f8]/30 transition-all" />
+            <button onClick={handleSend} disabled={!input.trim()}
+              className={`p-2.5 rounded-full transition-all ${input.trim() ? 'bg-[#8ab4f8] text-black' : 'bg-white/[0.05] text-white/20'}`}>
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

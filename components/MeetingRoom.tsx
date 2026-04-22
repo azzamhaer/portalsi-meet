@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext } from '@livekit/components-react';
+import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants } from '@livekit/components-react';
 import { VideoPresets, DisconnectReason, RoomOptions, Track, RoomEvent } from 'livekit-client';
 import type { MeetingProps, PanelType } from './meeting/types';
 import type { ViewMode } from './meeting/BottomBar';
@@ -11,15 +11,14 @@ import { ChatPanel } from './meeting/ChatPanel';
 import { ParticipantsPanel } from './meeting/ParticipantsPanel';
 import { InfoPanel } from './meeting/InfoPanel';
 import { SettingsPanel } from './meeting/SettingsPanel';
+import { ViewPanel } from './meeting/ViewPanel';
 
 export interface ChatMsg {
   id: string; text: string; senderName: string; senderIdentity: string; ts: number;
   edited?: boolean; editedAt?: number; deleted?: boolean; deletedAt?: number;
 }
-
-export interface FloatingNotif {
-  id: number; emoji?: string; text: string; name: string;
-}
+export interface FloatingNotif { id: number; emoji?: string; text: string; name: string; }
+export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; }
 
 const roomOptions: RoomOptions = {
   adaptiveStream: true, dynacast: true,
@@ -32,36 +31,24 @@ const roomOptions: RoomOptions = {
 
 export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLeave }: MeetingProps) {
   const [fatalError, setFatalError] = useState<string | null>(null);
-  if (!wsUrl) return <ErrorScreen title="Konfigurasi Bermasalah" msg="NEXT_PUBLIC_LIVEKIT_URL belum diset." onLeave={onLeave} />;
-  if (fatalError) return <ErrorScreen title="Koneksi Gagal" msg={fatalError} onLeave={onLeave} />;
-
+  if (!wsUrl) return <ErrScr title="Konfigurasi Bermasalah" msg="NEXT_PUBLIC_LIVEKIT_URL belum diset." onLeave={onLeave} />;
+  if (fatalError) return <ErrScr title="Koneksi Gagal" msg={fatalError} onLeave={onLeave} />;
   return (
-    <LiveKitRoom token={token} serverUrl={wsUrl} connect={true} options={roomOptions}
-      video={true} audio={true} data-lk-theme="default"
-      onDisconnected={(r) => { if (r === DisconnectReason.SERVER_SHUTDOWN || r === DisconnectReason.PARTICIPANT_REMOVED || r === DisconnectReason.ROOM_DELETED) onLeave(); }}
-      onError={(err) => setFatalError(err.message)}
+    <LiveKitRoom token={token} serverUrl={wsUrl} connect options={roomOptions}
+      video audio data-lk-theme="default"
+      onDisconnected={(r) => { if ([DisconnectReason.SERVER_SHUTDOWN, DisconnectReason.PARTICIPANT_REMOVED, DisconnectReason.ROOM_DELETED].includes(r!)) onLeave(); }}
+      onError={(e) => setFatalError(e.message)}
       className="theme-meet h-dvh w-dvw overflow-hidden text-white flex flex-col" style={{ background: '#0a0a0f' }}>
-      <MeetingShell roomId={roomId} isHost={isHost} password={password} onLeave={onLeave} />
+      <Shell roomId={roomId} isHost={isHost} password={password} onLeave={onLeave} />
       <RoomAudioRenderer /><ConnectionStateToast />
     </LiveKitRoom>
   );
 }
-
-function ErrorScreen({ title, msg, onLeave }: { title: string; msg: string; onLeave: () => void }) {
-  return (
-    <main className="theme-comic min-h-dvh flex items-center justify-center p-4">
-      <div className="card max-w-md text-center">
-        <h2 className="text-xl font-bold text-red-500">{title}</h2>
-        <p className="mt-2 text-ink-300">{msg}</p>
-        <button className="btn-primary mt-6 w-full" onClick={onLeave}>Kembali ke Beranda</button>
-      </div>
-    </main>
-  );
+function ErrScr({ title, msg, onLeave }: { title: string; msg: string; onLeave: () => void }) {
+  return <main className="theme-comic min-h-dvh flex items-center justify-center p-4"><div className="card max-w-md text-center"><h2 className="text-xl font-bold text-red-500">{title}</h2><p className="mt-2 text-ink-300">{msg}</p><button className="btn-primary mt-6 w-full" onClick={onLeave}>Kembali</button></div></main>;
 }
 
-function MeetingShell({ roomId, isHost, password, onLeave }: {
-  roomId: string; isHost: boolean; password?: string; onLeave: () => void;
-}) {
+function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: boolean; password?: string; onLeave: () => void }) {
   const [activePanel, setActivePanel] = useState<PanelType>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('standard');
   const [hideSelf, setHideSelf] = useState(false);
@@ -69,199 +56,159 @@ function MeetingShell({ roomId, isHost, password, onLeave }: {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [meetingStartTime] = useState(() => Date.now());
   const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>([]);
-  const [raisedHands, setRaisedHands] = useState<Map<string, string>>(new Map()); // identity -> name
+  const [raisedHands, setRaisedHands] = useState<Map<string, string>>(new Map());
   const [floats, setFloats] = useState<FloatingNotif[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [focusedIdentity, setFocusedIdentity] = useState<string | null>(null);
+  const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true });
+  const [joinToasts, setJoinToasts] = useState<string[]>([]);
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
-  const pipWindowRef = useRef<any>(null);
+  const pipRef = useRef<any>(null);
   const chatRef = useRef<ChatMsg[]>([]);
+  const activePanelRef = useRef(activePanel);
   const enc = useRef(new TextEncoder());
   const dec = useRef(new TextDecoder());
+  const joinBatch = useRef<string[]>([]);
+  const joinTimer = useRef<any>(null);
 
   useEffect(() => { chatRef.current = chatMsgs; }, [chatMsgs]);
+  useEffect(() => { activePanelRef.current = activePanel; if (activePanel === 'chat') setUnreadCount(0); }, [activePanel]);
 
-  // === Unified data handler ===
+  // === UNIFIED DATA HANDLER ===
   useEffect(() => {
-    const onData = (payload: Uint8Array, participant: any) => {
+    const onData = (payload: Uint8Array) => {
       try {
         const d = JSON.parse(dec.current.decode(payload));
-        switch (d.type) {
-          case 'chat':
-            if (d.action === 'send') {
-              setChatMsgs(p => {
-                if (p.some(m => m.id === d.id)) return p;
-                return [...p, { id: d.id, text: d.text, senderName: d.senderName, senderIdentity: d.senderIdentity, ts: d.ts }];
-              });
-            } else if (d.action === 'edit') {
-              setChatMsgs(p => p.map(m => m.id === d.id ? { ...m, text: d.text, edited: true, editedAt: d.ts } : m));
-            } else if (d.action === 'delete') {
-              setChatMsgs(p => p.map(m => m.id === d.id ? { ...m, deleted: true, deletedAt: d.ts } : m));
-            }
-            break;
-          case 'chat_history':
-            setChatMsgs(prev => {
-              const ids = new Set(prev.map(m => m.id));
-              const fresh = (d.messages as ChatMsg[]).filter(m => !ids.has(m.id));
-              return [...prev, ...fresh].sort((a, b) => a.ts - b.ts);
-            });
-            break;
-          case 'reaction':
-            addFloat(d.emoji, d.name);
-            break;
-          case 'hand':
-            setRaisedHands(prev => {
-              const next = new Map(prev);
-              if (d.raised) { next.set(d.identity, d.name); addFloat('✋', d.name); }
-              else next.delete(d.identity);
-              return next;
-            });
-            break;
+        if (d.type === 'chat') {
+          if (d.action === 'send') {
+            setChatMsgs(p => p.some(m => m.id === d.id) ? p : [...p, { id: d.id, text: d.text, senderName: d.senderName, senderIdentity: d.senderIdentity, ts: d.ts }]);
+            if (activePanelRef.current !== 'chat') setUnreadCount(c => c + 1);
+          } else if (d.action === 'edit') setChatMsgs(p => p.map(m => m.id === d.id ? { ...m, text: d.text, edited: true, editedAt: d.ts } : m));
+          else if (d.action === 'delete') setChatMsgs(p => p.map(m => m.id === d.id ? { ...m, deleted: true, deletedAt: d.ts } : m));
+        } else if (d.type === 'chat_history') {
+          setChatMsgs(prev => { const ids = new Set(prev.map(m => m.id)); return [...prev, ...(d.messages as ChatMsg[]).filter(m => !ids.has(m.id))].sort((a, b) => a.ts - b.ts); });
+        } else if (d.type === 'reaction') { addFloat(d.emoji, d.name); }
+        else if (d.type === 'hand') { setRaisedHands(p => { const n = new Map(p); d.raised ? n.set(d.identity, d.name) : n.delete(d.identity); return n; }); if (d.raised) addFloat('✋', d.name); }
+        else if (d.type === 'permissions') { if (!isHost) setPerms(d.perms); }
+        else if (d.type === 'host_action') {
+          if (d.action === 'mute_all' && !isHost) localParticipant.setMicrophoneEnabled(false);
+          if (d.action === 'stop_share' && d.target === localParticipant.identity) { const st = localParticipant.getTrackPublication(Track.Source.ScreenShare); if (st?.track) localParticipant.unpublishTrack(st.track); }
         }
       } catch {}
     };
-
     const onJoin = (p: any) => {
-      // Send chat history to new joiner
-      setTimeout(() => {
-        if (chatRef.current.length > 0) {
-          const payload = enc.current.encode(JSON.stringify({ type: 'chat_history', messages: chatRef.current }));
-          room.localParticipant.publishData(payload, { reliable: true, destinationIdentities: [p.identity] });
-        }
-      }, 1000);
+      setTimeout(() => { if (chatRef.current.length > 0) room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'chat_history', messages: chatRef.current })), { reliable: true, destinationIdentities: [p.identity] }); }, 1000);
+      // Batched join notification
+      joinBatch.current.push(p.name || 'Anonim');
+      clearTimeout(joinTimer.current);
+      joinTimer.current = setTimeout(() => {
+        const names = [...joinBatch.current]; joinBatch.current = [];
+        const label = names.length <= 2 ? names.join(' dan ') : `${names[0]}, ${names[1]}, dan ${names.length - 2} lainnya`;
+        setJoinToasts(prev => [label]);
+        setTimeout(() => setJoinToasts([]), 4000);
+      }, 2000);
     };
-
     room.on(RoomEvent.DataReceived, onData);
     room.on(RoomEvent.ParticipantConnected, onJoin);
     return () => { room.off(RoomEvent.DataReceived, onData); room.off(RoomEvent.ParticipantConnected, onJoin); };
-  }, [room]);
+  }, [room, isHost, localParticipant]);
 
-  const addFloat = (emoji: string, name: string) => {
-    const id = Date.now() + Math.random();
-    setFloats(p => [...p, { id, emoji, text: emoji, name }]);
-    setTimeout(() => setFloats(p => p.filter(f => f.id !== id)), 3500);
-  };
+  const addFloat = (emoji: string, name: string) => { const id = Date.now() + Math.random(); setFloats(p => [...p, { id, emoji, text: emoji, name }]); setTimeout(() => setFloats(p => p.filter(f => f.id !== id)), 3500); };
+  const pub = useCallback((d: any) => room.localParticipant.publishData(enc.current.encode(JSON.stringify(d)), { reliable: true }), [room]);
+  const sendChat = useCallback((text: string) => { const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); const msg: ChatMsg = { id, text, senderName: localParticipant.name || 'Anonim', senderIdentity: localParticipant.identity, ts: Date.now() }; setChatMsgs(p => [...p, msg]); pub({ type: 'chat', action: 'send', ...msg }); }, [pub, localParticipant]);
+  const editChat = useCallback((id: string, text: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, text, edited: true, editedAt: ts } : m)); pub({ type: 'chat', action: 'edit', id, text, ts }); }, [pub]);
+  const deleteChat = useCallback((id: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, deleted: true, deletedAt: ts } : m)); pub({ type: 'chat', action: 'delete', id, ts }); }, [pub]);
+  const sendReaction = useCallback((emoji: string) => { const name = localParticipant.name || 'Anonim'; addFloat(emoji, name); pub({ type: 'reaction', emoji, name }); }, [pub, localParticipant]);
 
-  // === Chat send/edit/delete ===
-  const sendChat = useCallback((text: string) => {
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const msg: ChatMsg = { id, text, senderName: localParticipant.name || 'Anonim', senderIdentity: localParticipant.identity, ts: Date.now() };
-    setChatMsgs(p => [...p, msg]);
-    room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'chat', action: 'send', ...msg })), { reliable: true });
-  }, [room, localParticipant]);
-
-  const editChat = useCallback((id: string, text: string) => {
-    const ts = Date.now();
-    setChatMsgs(p => p.map(m => m.id === id ? { ...m, text, edited: true, editedAt: ts } : m));
-    room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'chat', action: 'edit', id, text, ts })), { reliable: true });
-  }, [room]);
-
-  const deleteChat = useCallback((id: string) => {
-    const ts = Date.now();
-    setChatMsgs(p => p.map(m => m.id === id ? { ...m, deleted: true, deletedAt: ts } : m));
-    room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'chat', action: 'delete', id, ts })), { reliable: true });
-  }, [room]);
-
-  // === Reaction ===
-  const sendReaction = useCallback((emoji: string) => {
-    const name = localParticipant.name || 'Anonim';
-    addFloat(emoji, name);
-    room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'reaction', emoji, name })), { reliable: true });
-  }, [room, localParticipant]);
-
-  // === Hand raise ===
   const [handRaised, setHandRaised] = useState(false);
-  const toggleHand = useCallback(() => {
-    const raised = !handRaised;
-    setHandRaised(raised);
-    const name = localParticipant.name || 'Anonim';
-    if (raised) {
-      setRaisedHands(p => { const n = new Map(p); n.set(localParticipant.identity, name); return n; });
-    } else {
-      setRaisedHands(p => { const n = new Map(p); n.delete(localParticipant.identity); return n; });
-    }
-    room.localParticipant.publishData(enc.current.encode(JSON.stringify({
-      type: 'hand', raised, identity: localParticipant.identity, name,
-    })), { reliable: true });
-  }, [handRaised, room, localParticipant]);
+  const toggleHand = useCallback(() => { const r = !handRaised; setHandRaised(r); const n = localParticipant.name || 'Anonim'; setRaisedHands(p => { const m = new Map(p); r ? m.set(localParticipant.identity, n) : m.delete(localParticipant.identity); return m; }); pub({ type: 'hand', raised: r, identity: localParticipant.identity, name: n }); }, [handRaised, pub, localParticipant]);
+
+  // Host actions
+  const broadcastPerms = useCallback((p: RoomPerms) => { setPerms(p); pub({ type: 'permissions', perms: p }); }, [pub]);
+  const muteAll = useCallback(() => { pub({ type: 'host_action', action: 'mute_all' }); }, [pub]);
+  const stopShare = useCallback((identity: string) => { pub({ type: 'host_action', action: 'stop_share', target: identity }); }, [pub]);
 
   // Escape
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setActivePanel(null); setShowLeaveConfirm(false); } };
-    window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
-  }, []);
+  useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setActivePanel(null); setShowLeaveConfirm(false); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, []);
 
   // === AUTO PiP ===
   useEffect(() => {
-    let timeout: any;
+    let to: any;
     const handle = () => {
-      clearTimeout(timeout);
+      clearTimeout(to);
       if (document.hidden) {
-        timeout = setTimeout(async () => {
-          if (pipWindowRef.current) return;
+        to = setTimeout(async () => {
+          if (pipRef.current) return;
           try {
             if ('documentPictureInPicture' in window) {
               const pw = await (window as any).documentPictureInPicture.requestWindow({ width: 340, height: 260 });
-              pipWindowRef.current = pw;
-              buildPipWindow(pw, localParticipant, onLeave);
-              pw.addEventListener('pagehide', () => { pipWindowRef.current = null; });
+              pipRef.current = pw;
+              buildPip(pw, localParticipant, () => { pw.close(); pipRef.current = null; setShowLeaveConfirm(true); });
+              pw.addEventListener('pagehide', () => { pipRef.current = null; });
             } else {
               const v = document.querySelector('.lk-participant-tile video') as HTMLVideoElement | null;
               if (v?.requestPictureInPicture) await v.requestPictureInPicture();
             }
           } catch {}
-        }, 300);
+        }, 100);
       } else {
-        try {
-          if (pipWindowRef.current) { pipWindowRef.current.close(); pipWindowRef.current = null; }
-          if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
-        } catch {}
+        try { if (pipRef.current) { pipRef.current.close(); pipRef.current = null; } if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {}); } catch {}
       }
     };
     document.addEventListener('visibilitychange', handle);
-    return () => { clearTimeout(timeout); document.removeEventListener('visibilitychange', handle); if (pipWindowRef.current) { pipWindowRef.current.close(); pipWindowRef.current = null; } };
-  }, [localParticipant, onLeave]);
+    window.addEventListener('blur', handle);
+    window.addEventListener('focus', handle);
+    return () => { clearTimeout(to); document.removeEventListener('visibilitychange', handle); window.removeEventListener('blur', handle); window.removeEventListener('focus', handle); if (pipRef.current) { pipRef.current.close(); pipRef.current = null; } };
+  }, [localParticipant]);
+
+  const handleScreenShare = useCallback(() => {
+    // This is called from mobile hamburger; on desktop LiveKit ControlBar handles it
+  }, []);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden relative">
-      {/* Floating reactions + hand raise notifications */}
+      {/* Floating reactions */}
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] pointer-events-none flex flex-col items-center gap-2">
-        {floats.map(f => (
-          <div key={f.id} className="reaction-float flex flex-col items-center">
-            <span className="text-4xl">{f.emoji}</span>
-            <span className="text-xs text-white/70 font-medium bg-black/40 px-2 py-0.5 rounded-full mt-0.5">{f.name}</span>
-          </div>
-        ))}
+        {floats.map(f => <div key={f.id} className="reaction-float flex flex-col items-center"><span className="text-4xl">{f.emoji}</span><span className="text-xs text-white/70 font-medium bg-black/40 px-2 py-0.5 rounded-full mt-0.5">{f.name}</span></div>)}
       </div>
 
       {/* Raised hands bar */}
       {raisedHands.size > 0 && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 glass-panel rounded-2xl px-4 py-2 flex items-center gap-3 animate-scale-in">
-          <span className="text-lg">✋</span>
-          <span className="text-sm text-white/80">
-            {Array.from(raisedHands.values()).join(', ')} mengangkat tangan
-          </span>
+          <span className="text-lg">✋</span><span className="text-sm text-white/80">{Array.from(raisedHands.values()).join(', ')} mengangkat tangan</span>
+        </div>
+      )}
+
+      {/* Join toast */}
+      {joinToasts.length > 0 && (
+        <div className="absolute top-3 right-3 z-50 glass-panel rounded-xl px-4 py-2.5 animate-scale-in flex items-center gap-2 text-sm text-white/80 max-w-sm">
+          <span className="text-lg">👋</span>{joinToasts[0]} bergabung
         </div>
       )}
 
       <div className="relative flex flex-1 overflow-hidden pb-[80px]">
         <div className="relative flex-1 overflow-hidden">
-          <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight} />
+          <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight}
+            focusedIdentity={focusedIdentity} onFocusParticipant={setFocusedIdentity} />
         </div>
 
-        {/* Chat - always mounted for history */}
+        {/* Chat always mounted */}
         <div style={{ display: activePanel === 'chat' ? undefined : 'none' }}
              className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
           <ChatPanel messages={chatMsgs} localIdentity={localParticipant.identity}
-            onSend={sendChat} onEdit={editChat} onDelete={deleteChat} onClose={() => setActivePanel(null)} />
+            onSend={sendChat} onEdit={editChat} onDelete={deleteChat} onClose={() => setActivePanel(null)}
+            disabled={!isHost && !perms.allowChat} />
         </div>
 
         {activePanel && activePanel !== 'chat' && (
           <>
             <div className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setActivePanel(null)} />
             <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
-              {activePanel === 'participants' && <ParticipantsPanel isHost={isHost} roomId={roomId} onClose={() => setActivePanel(null)} />}
+              {activePanel === 'participants' && <ParticipantsPanel isHost={isHost} roomId={roomId} onClose={() => setActivePanel(null)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onStopShare={stopShare} />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} />}
               {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} />}
+              {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
             </div>
           </>
         )}
@@ -269,9 +216,9 @@ function MeetingShell({ roomId, isHost, password, onLeave }: {
       </div>
 
       <BottomBar roomId={roomId} activePanel={activePanel} onPanelChange={setActivePanel}
-        onLeave={() => setShowLeaveConfirm(true)} viewMode={viewMode} onViewModeChange={setViewMode}
-        hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)}
-        onReaction={sendReaction} handRaised={handRaised} onToggleHand={toggleHand} />
+        onLeave={() => setShowLeaveConfirm(true)} onReaction={sendReaction}
+        handRaised={handRaised} onToggleHand={toggleHand} unreadCount={unreadCount}
+        permissions={perms} isHost={isHost} onScreenShare={handleScreenShare} />
 
       {/* Leave Confirmation */}
       {showLeaveConfirm && (
@@ -279,9 +226,7 @@ function MeetingShell({ roomId, isHost, password, onLeave }: {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" />
           <div className="relative glass-panel rounded-3xl p-6 w-full max-w-sm animate-scale-in text-center" onClick={e => e.stopPropagation()}>
             <div className="mx-auto w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center mb-4">
-              <svg className="h-7 w-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-              </svg>
+              <svg className="h-7 w-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>
             </div>
             <h3 className="text-lg font-semibold text-white/90 mb-1">Tinggalkan Meeting?</h3>
             <p className="text-sm text-white/40 mb-6">Anda yakin ingin meninggalkan meeting ini?</p>
@@ -296,50 +241,42 @@ function MeetingShell({ roomId, isHost, password, onLeave }: {
   );
 }
 
-function buildPipWindow(pw: any, lp: any, onLeave: () => void) {
+// === PiP builder — no room ID, polling sync, leave confirmation ===
+function buildPip(pw: any, lp: any, onLeave: () => void) {
   const s = pw.document.createElement('style');
   s.textContent = `*{margin:0;box-sizing:border-box;font-family:system-ui}body{background:#0a0a0f;overflow:hidden}.w{height:100vh;position:relative}.v{height:100%;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;object-fit:cover}.nv{color:rgba(255,255,255,0.2);font-size:13px;text-align:center}.nav{display:flex;gap:8px;padding:10px 16px;justify-content:center;position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);opacity:0;transition:opacity 0.2s}.w:hover .nav{opacity:1}.b{width:40px;height:40px;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s}.bd{background:rgba(255,255,255,0.12);color:#e8eaed}.bd:hover{background:rgba(255,255,255,0.2)}.ba{background:rgba(234,67,53,0.8);color:#fff}.br{background:rgba(234,67,53,0.85);color:#fff}.br:hover{background:#ea4335}svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}`;
   pw.document.head.appendChild(s);
-  const MI = '<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
-  const MO = '<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .76-.13 1.5-.35 2.18"/></svg>';
-  const CI = '<svg viewBox="0 0 24 24"><path d="m16 6 5-3v18l-5-3Z"/><rect x="2" y="4" width="14" height="16" rx="2"/></svg>';
-  const CO = '<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16 6.12V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10"/><path d="m22 8-5 3"/></svg>';
-  const PH = '<svg viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 2.59 3.4Z"/></svg>';
+  const MI='<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
+  const MO='<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .76-.13 1.5-.35 2.18"/></svg>';
+  const CI='<svg viewBox="0 0 24 24"><path d="m16 6 5-3v18l-5-3Z"/><rect x="2" y="4" width="14" height="16" rx="2"/></svg>';
+  const CO='<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16 6.12V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10"/><path d="m22 8-5 3"/></svg>';
+  const PH='<svg viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 2.59 3.4Z"/></svg>';
 
-  const wrap = pw.document.createElement('div'); wrap.className = 'w';
-  const vid = pw.document.createElement('div'); vid.className = 'v';
-  const videoEl = pw.document.createElement('video');
-  videoEl.autoplay = true; videoEl.muted = true; videoEl.playsInline = true;
-  const noVid = pw.document.createElement('div'); noVid.className = 'nv'; noVid.textContent = 'Kamera mati';
+  const wrap = pw.document.createElement('div'); wrap.className='w';
+  const vid = pw.document.createElement('div'); vid.className='v';
+  const videoEl = pw.document.createElement('video'); videoEl.autoplay=true; videoEl.muted=true; videoEl.playsInline=true;
+  const noVid = pw.document.createElement('div'); noVid.className='nv'; noVid.textContent='Kamera mati';
+  let lastTrackId = '';
 
   const updateVideo = () => {
-    const t = lp.getTrackPublication(Track.Source.Camera)?.track;
-    if (t?.mediaStreamTrack) { videoEl.srcObject = new MediaStream([t.mediaStreamTrack]); if (!videoEl.parentNode) { noVid.remove(); vid.prepend(videoEl); } }
-    else { if (!noVid.parentNode) { videoEl.remove(); vid.prepend(noVid); } }
+    const t = lp.getTrackPublication?.(Track.Source.Camera)?.track;
+    const tid = t?.mediaStreamTrack?.id || '';
+    if (tid && tid !== lastTrackId) { videoEl.srcObject = new MediaStream([t.mediaStreamTrack]); lastTrackId = tid; if (!videoEl.parentNode) { noVid.remove(); vid.prepend(videoEl); } }
+    else if (!tid && !noVid.parentNode) { videoEl.remove(); vid.prepend(noVid); lastTrackId = ''; }
   };
   updateVideo();
 
-  const nav = pw.document.createElement('div'); nav.className = 'nav';
+  const nav = pw.document.createElement('div'); nav.className='nav';
   const mb = pw.document.createElement('button');
   const cb = pw.document.createElement('button');
-
-  const sync = () => {
-    const micOn = lp.isMicrophoneEnabled; const camOn = lp.isCameraEnabled;
-    mb.innerHTML = micOn ? MI : MO; mb.className = `b ${micOn ? 'bd' : 'ba'}`;
-    cb.innerHTML = camOn ? CI : CO; cb.className = `b ${camOn ? 'bd' : 'ba'}`;
-  };
+  const sync = () => { const m=lp.isMicrophoneEnabled,c=lp.isCameraEnabled; mb.innerHTML=m?MI:MO; mb.className=`b ${m?'bd':'ba'}`; cb.innerHTML=c?CI:CO; cb.className=`b ${c?'bd':'ba'}`; };
   sync();
-
-  mb.onclick = () => { lp.setMicrophoneEnabled(!lp.isMicrophoneEnabled); setTimeout(sync, 100); };
-  cb.onclick = () => { lp.setCameraEnabled(!lp.isCameraEnabled); setTimeout(() => { sync(); updateVideo(); }, 300); };
-  const lb = pw.document.createElement('button'); lb.className = 'b br'; lb.innerHTML = PH;
-  lb.onclick = () => { pw.close(); onLeave(); };
-
+  mb.onclick = () => { lp.setMicrophoneEnabled(!lp.isMicrophoneEnabled); setTimeout(sync,100); };
+  cb.onclick = () => { lp.setCameraEnabled(!lp.isCameraEnabled); setTimeout(()=>{sync();updateVideo();},300); };
+  const lb = pw.document.createElement('button'); lb.className='b br'; lb.innerHTML=PH;
+  lb.onclick = () => { onLeave(); };
   nav.appendChild(mb); nav.appendChild(cb); nav.appendChild(lb);
   vid.appendChild(nav); wrap.appendChild(vid); pw.document.body.appendChild(wrap);
-
-  // Poll state every 500ms to stay in sync with main page
   const iv = setInterval(() => { try { sync(); updateVideo(); } catch { clearInterval(iv); } }, 500);
   pw.addEventListener('pagehide', () => clearInterval(iv));
 }
-

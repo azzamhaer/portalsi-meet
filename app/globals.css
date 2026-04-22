@@ -122,8 +122,8 @@
 .theme-meet .lk-button-group-menu li {
   padding: 10px 14px !important; border-radius: 10px !important; color: #e8eaed !important;
   font-size: 13px !important; cursor: pointer !important; transition: background 0.15s !important;
-  white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;
-  list-style: none !important; display: block !important;
+  white-space: normal !important; word-break: break-word !important; overflow-wrap: break-word !important;
+  list-style: none !important; display: block !important; line-height: 1.4 !important;
 }
 .theme-meet .lk-media-device-select li:hover,
 .theme-meet .lk-button-group-menu li:hover { background: rgba(255,255,255,0.08) !important; }

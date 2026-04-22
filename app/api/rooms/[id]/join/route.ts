@@ -37,6 +37,14 @@ export async function POST(
     );
   }
 
+  // Check if host has blocked new joins
+  if (room.permissions && !room.permissions.allowJoin) {
+    return NextResponse.json(
+      { error: 'Host telah menonaktifkan akses masuk ke ruangan ini.' },
+      { status: 403 }
+    );
+  }
+
   let body: any = {};
   try {
     body = await req.json();

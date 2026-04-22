@@ -1,6 +1,12 @@
 import bcrypt from 'bcryptjs';
 import redis from './redis';
 
+export interface RoomPermissions {
+  allowChat: boolean;
+  allowScreenShare: boolean;
+  allowJoin: boolean;
+}
+
 export interface RoomRecord {
   id: string;
   hostIdentity: string;
@@ -8,6 +14,7 @@ export interface RoomRecord {
   lobby: boolean;
   createdAt: number;
   hostName: string;
+  permissions: RoomPermissions;
 }
 
 const ROOM_TTL_SECONDS = 24 * 60 * 60; // 24 hours
@@ -32,6 +39,7 @@ export async function createRoom(opts: {
       : undefined,
     lobby: opts.lobby ?? false,
     createdAt: Date.now(),
+    permissions: { allowChat: true, allowScreenShare: true, allowJoin: true },
   };
 
   await redis.setex(
