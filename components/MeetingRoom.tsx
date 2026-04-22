@@ -73,6 +73,7 @@ function MeetingShell({ roomId, isHost, password, onLeave }: {
   const [hideSelf, setHideSelf] = useState(false);
   const [enhanceLight, setEnhanceLight] = useState(false);
   const [meetingStartTime] = useState(() => Date.now());
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const { localParticipant } = useLocalParticipant();
   const pipWindowRef = useRef<any>(null);
 
@@ -243,8 +244,34 @@ function MeetingShell({ roomId, isHost, password, onLeave }: {
       </div>
 
       <BottomBar roomId={roomId} activePanel={activePanel} onPanelChange={setActivePanel}
-        onLeave={onLeave} viewMode={viewMode} onViewModeChange={setViewMode}
+        onLeave={() => setShowLeaveConfirm(true)} viewMode={viewMode} onViewModeChange={setViewMode}
         hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} />
+
+      {/* Leave Confirmation Modal */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setShowLeaveConfirm(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" />
+          <div className="relative glass-panel rounded-3xl p-6 w-full max-w-sm animate-scale-in text-center" onClick={e => e.stopPropagation()}>
+            <div className="mx-auto w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center mb-4">
+              <svg className="h-7 w-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-white/90 mb-1">Tinggalkan Meeting?</h3>
+            <p className="text-sm text-white/40 mb-6">Anda yakin ingin meninggalkan meeting ini?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold text-white/80 bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.06] transition-all active:scale-95">
+                Tetap di Meeting
+              </button>
+              <button onClick={onLeave}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-400 transition-all active:scale-95 shadow-[0_0_20px_rgba(234,67,53,0.3)]">
+                Tinggalkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
