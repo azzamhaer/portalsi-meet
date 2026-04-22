@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Monitor, Sparkles, Sun, Volume2, Mic, Camera, AlertCircle } from 'lucide-react';
+import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle } from 'lucide-react';
 
-export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, blurBg, onToggleBlurBg }: {
+export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight }: {
   onClose: () => void;
   enhanceLight: boolean;
   onToggleEnhanceLight: () => void;
-  blurBg: boolean;
-  onToggleBlurBg: () => void;
 }) {
   const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] });
   const [noiseSuppression, setNoiseSuppression] = useState(true);
@@ -28,58 +26,41 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, blu
         <button onClick={onClose} className="glass-button rounded-full p-1.5"><X className="h-4 w-4 text-white/70" /></button>
       </div>
       <div className="flex-1 overflow-y-auto meet-scrollbar p-5 space-y-6">
-        {/* Camera */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-1.5"><Camera className="h-3.5 w-3.5" /> Kamera</label>
-          <select className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm text-white/80 outline-none focus:border-[#8ab4f8]/40 appearance-none">
-            {devices.video.length > 0 ? devices.video.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || 'Camera'}</option>) : <option>Default Camera</option>}
-          </select>
-        </div>
-        {/* Mic */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-1.5"><Mic className="h-3.5 w-3.5" /> Mikrofon</label>
-          <select className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm text-white/80 outline-none focus:border-[#8ab4f8]/40 appearance-none">
-            {devices.audio.length > 0 ? devices.audio.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>) : <option>Default Microphone</option>}
-          </select>
-        </div>
-        {/* Speaker */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-1.5"><Volume2 className="h-3.5 w-3.5" /> Speaker</label>
-          <select className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm text-white/80 outline-none focus:border-[#8ab4f8]/40 appearance-none">
-            <option>Default Speaker</option>
-          </select>
-        </div>
+        <DeviceSelect icon={<Camera className="h-3.5 w-3.5" />} label="Kamera" devices={devices.video} fallback="Default Camera" />
+        <DeviceSelect icon={<Mic className="h-3.5 w-3.5" />} label="Mikrofon" devices={devices.audio} fallback="Default Microphone" />
+        <DeviceSelect icon={<Volume2 className="h-3.5 w-3.5" />} label="Speaker" devices={[]} fallback="Default Speaker" />
         <hr className="border-white/[0.06]" />
         <div className="space-y-4">
           <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider">Efek Visual</h3>
-          {/* Enhance Lighting — WORKS via CSS filter */}
           <Toggle icon={<Sun className="h-4 w-4 text-yellow-400" />} title="Enhance Lighting" desc="Tingkatkan kecerahan & kontras wajah" active={enhanceLight} onToggle={onToggleEnhanceLight} />
-          {/* Blur Background */}
-          <Toggle icon={<Sparkles className="h-4 w-4 text-purple-400" />} title="Blur Latar Belakang" desc="Samarkan background Anda" active={blurBg} onToggle={onToggleBlurBg}
-            badge={<span className="text-[10px] bg-white/[0.08] text-white/40 px-2 py-0.5 rounded-full ml-auto">Beta</span>} />
-          {/* Noise Suppression */}
           <Toggle icon={<Volume2 className="h-4 w-4 text-green-400" />} title="Noise Suppression" desc="Kurangi noise latar belakang" active={noiseSuppression} onToggle={() => setNoiseSuppression(!noiseSuppression)} />
         </div>
         <div className="flex items-start gap-2.5 bg-white/[0.03] rounded-xl p-3">
           <AlertCircle className="h-4 w-4 text-white/30 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-white/30 leading-relaxed">Enhance Lighting menggunakan filter CSS real-time. Blur Background membutuhkan perangkat yang mendukung.</p>
+          <p className="text-[11px] text-white/30 leading-relaxed">Enhance Lighting menggunakan filter CSS real-time pada video Anda.</p>
         </div>
       </div>
     </aside>
   );
 }
 
-function Toggle({ icon, title, desc, active, onToggle, badge }: {
-  icon: React.ReactNode; title: string; desc: string; active: boolean; onToggle: () => void; badge?: React.ReactNode;
-}) {
+function DeviceSelect({ icon, label, devices, fallback }: { icon: React.ReactNode; label: string; devices: MediaDeviceInfo[]; fallback: string }) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-1.5">{icon} {label}</label>
+      <select className="w-full bg-[#121218] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 outline-none focus:border-[#8ab4f8]/40 appearance-none cursor-pointer">
+        {devices.length > 0 ? devices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || fallback}</option>) : <option>{fallback}</option>}
+      </select>
+    </div>
+  );
+}
+
+function Toggle({ icon, title, desc, active, onToggle }: { icon: React.ReactNode; title: string; desc: string; active: boolean; onToggle: () => void }) {
   return (
     <div className="flex items-center justify-between cursor-pointer group" onClick={onToggle}>
       <div className="flex items-center gap-3">
         <div className="p-2 rounded-lg bg-white/[0.04]">{icon}</div>
-        <div>
-          <p className="text-sm font-medium text-white/80 flex items-center gap-2">{title}{badge}</p>
-          <p className="text-[11px] text-white/25">{desc}</p>
-        </div>
+        <div><p className="text-sm font-medium text-white/80">{title}</p><p className="text-[11px] text-white/25">{desc}</p></div>
       </div>
       <div className={`w-11 h-6 rounded-full relative transition-all shrink-0 ml-3 ${active ? 'bg-[#8ab4f8]' : 'bg-white/10'}`}>
         <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${active ? 'translate-x-5' : ''}`} />
