@@ -38,7 +38,7 @@ export function HomeHero() {
       if (!res.ok) throw new Error(data.error || 'Gagal membuat ruang.');
       sessionStorage.setItem(
         `lk-${data.roomId}`,
-        JSON.stringify({ token: data.token, wsUrl: data.wsUrl, name: name.trim(), isHost: true })
+        JSON.stringify({ token: data.token, wsUrl: data.wsUrl, name: name.trim(), isHost: true, password: usePassword && password ? password : undefined })
       );
       router.push(`/room/${data.roomId}`);
     } catch (err: any) {

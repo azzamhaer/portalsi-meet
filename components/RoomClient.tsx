@@ -11,6 +11,7 @@ interface ConnectionInfo {
   wsUrl: string;
   name: string;
   isHost: boolean;
+  password?: string;
 }
 
 export function RoomClient({ roomId }: { roomId: string }) {
@@ -123,7 +124,7 @@ export function RoomClient({ roomId }: { roomId: string }) {
   }
 
   if (state === 'connected' && conn) {
-    return <MeetingRoom roomId={roomId} token={conn.token} wsUrl={conn.wsUrl} name={conn.name} isHost={conn.isHost} onLeave={() => router.push('/')} />;
+    return <MeetingRoom roomId={roomId} token={conn.token} wsUrl={conn.wsUrl} name={conn.name} isHost={conn.isHost} password={conn.password} onLeave={() => router.push('/')} />;
   }
 
   // need-name / need-password

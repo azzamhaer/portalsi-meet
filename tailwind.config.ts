@@ -31,16 +31,32 @@ const config: Config = {
           700: '#047857',
         },
         ink: {
-          900: '#ffffff', // White base
-          800: '#f8f9fa', // Off white
-          700: '#e9ecef', // Light gray bg
-          600: '#dee2e6', // Gray border
-          500: '#ced4da', // Medium Gray
-          400: '#6c757d', // Text secondary
-          300: '#495057', // Text normal
-          200: '#343a40', // Base Text strong
-          100: '#212529', // Ink Black text
-          DEFAULT: '#000000', // Pure Black
+          900: '#ffffff',
+          800: '#f8f9fa',
+          700: '#e9ecef',
+          600: '#dee2e6',
+          500: '#ced4da',
+          400: '#6c757d',
+          300: '#495057',
+          200: '#343a40',
+          100: '#212529',
+          DEFAULT: '#000000',
+        },
+        // Dark meeting theme tokens
+        meet: {
+          bg: '#1a1a2e',
+          'bg-elevated': '#16213e',
+          'bg-card': '#0f3460',
+          surface: '#202040',
+          'surface-hover': '#2a2a4a',
+          accent: '#8ab4f8',
+          'accent-hover': '#aecbfa',
+          danger: '#ea4335',
+          'danger-hover': '#f44336',
+          border: 'rgba(255,255,255,0.08)',
+          'text-primary': '#e8eaed',
+          'text-secondary': '#9aa0a6',
+          'text-muted': '#5f6368',
         },
       },
       fontFamily: {
@@ -51,6 +67,13 @@ const config: Config = {
         'fade-in': 'fadeIn 0.4s ease-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'glow': 'glow 2s ease-in-out infinite alternate',
+        'slide-in-right': 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        'slide-out-right': 'slideOutRight 0.25s ease-in',
+        'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        'fade-in-up': 'fadeInUp 0.3s ease-out',
+        'speaking-ring': 'speakingRing 1.5s ease-in-out infinite',
+        'bounce-subtle': 'bounceSubtle 2s ease-in-out infinite',
+        'slide-up-panel': 'slideUpPanel 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
       },
       keyframes: {
         fadeIn: {
@@ -65,16 +88,53 @@ const config: Config = {
           from: { transform: 'translate(0, 0)', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' },
           to:   { transform: 'translate(4px, 4px)', boxShadow: '0px 0px 0px 0px rgba(0,0,0,1)' },
         },
+        slideInRight: {
+          from: { opacity: '0', transform: 'translateX(100%)' },
+          to: { opacity: '1', transform: 'translateX(0)' },
+        },
+        slideOutRight: {
+          from: { opacity: '1', transform: 'translateX(0)' },
+          to: { opacity: '0', transform: 'translateX(100%)' },
+        },
+        scaleIn: {
+          from: { opacity: '0', transform: 'scale(0.9)' },
+          to: { opacity: '1', transform: 'scale(1)' },
+        },
+        fadeInUp: {
+          from: { opacity: '0', transform: 'translateY(8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        speakingRing: {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(138,180,248,0.4)' },
+          '50%': { boxShadow: '0 0 0 6px rgba(138,180,248,0)' },
+        },
+        bounceSubtle: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-3px)' },
+        },
+        slideUpPanel: {
+          from: { opacity: '0', transform: 'translateY(100%)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       backgroundImage: {
         'gradient-brand': 'linear-gradient(135deg, #FFD700 0%, #00FFFF 100%)',
         'brutal-dots': 'radial-gradient(#000 1px, transparent 1px)',
+        'gradient-meet': 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+        'gradient-meet-subtle': 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)',
       },
       boxShadow: {
         'brutal': '4px 4px 0px 0px rgba(0,0,0,1)',
         'brutal-lg': '8px 8px 0px 0px rgba(0,0,0,1)',
         'brutal-active': '0px 0px 0px 0px rgba(0,0,0,1)',
-      }
+        'glass': '0 8px 32px rgba(0,0,0,0.3)',
+        'glass-lg': '0 16px 48px rgba(0,0,0,0.4)',
+        'glow-accent': '0 0 20px rgba(138,180,248,0.3)',
+        'glow-danger': '0 0 20px rgba(234,67,53,0.3)',
+      },
+      backdropBlur: {
+        'xs': '2px',
+      },
     },
   },
   plugins: [],
