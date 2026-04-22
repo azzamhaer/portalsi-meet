@@ -9,26 +9,26 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#FFD700', // Bright Cartoon Yellow
-          50: '#fffbeb',
-          100: '#fef3c7',
-          200: '#fde68a',
-          300: '#fcd34d',
-          400: '#fbbf24',
-          500: '#FFD700',
-          600: '#d97706',
-          700: '#b45309',
+          DEFAULT: '#F97316',
+          50: '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          400: '#fb923c',
+          500: '#F97316',
+          600: '#ea580c',
+          700: '#c2410c',
         },
         secondary: {
-          DEFAULT: '#00FFFF', // Bright Cartoon Cyan
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          300: '#6ee7b7',
-          400: '#34d399',
-          500: '#00FFFF',
-          600: '#059669',
-          700: '#047857',
+          DEFAULT: '#22C55E',
+          50: '#f0fdf4',
+          100: '#dcfce7',
+          200: '#bbf7d0',
+          300: '#86efac',
+          400: '#4ade80',
+          500: '#22C55E',
+          600: '#16a34a',
+          700: '#15803d',
         },
         ink: {
           900: '#ffffff',
@@ -118,7 +118,7 @@ const config: Config = {
         },
       },
       backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, #FFD700 0%, #00FFFF 100%)',
+        'gradient-brand': 'linear-gradient(135deg, #F97316 0%, #22C55E 100%)',
         'brutal-dots': 'radial-gradient(#000 1px, transparent 1px)',
         'gradient-meet': 'linear-gradient(135deg, #0a0a0f 0%, #111118 50%, #141418 100%)',
         'gradient-meet-subtle': 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%)',

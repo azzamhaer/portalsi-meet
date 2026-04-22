@@ -12,7 +12,6 @@ export function HomeHero() {
   const [roomId, setRoomId] = useState('');
   const [password, setPassword] = useState('');
   const [usePassword, setUsePassword] = useState(false);
-  const [useLobby, setUseLobby] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +30,7 @@ export function HomeHero() {
         body: JSON.stringify({
           hostName: name.trim(),
           password: usePassword && password ? password : undefined,
-          lobby: useLobby,
+          lobby: false,
         }),
       });
       const data = await res.json();
@@ -145,15 +144,6 @@ export function HomeHero() {
                     className="h-5 w-5 rounded border-2 border-black focus:ring-0 accent-primary"
                   />
                   <span className="text-sm font-bold text-black">Password</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={useLobby}
-                    onChange={(e) => setUseLobby(e.target.checked)}
-                    className="h-5 w-5 rounded border-2 border-black focus:ring-0 accent-secondary"
-                  />
-                  <span className="text-sm font-bold text-black">Lobby</span>
                 </label>
               </div>
               {usePassword && (
