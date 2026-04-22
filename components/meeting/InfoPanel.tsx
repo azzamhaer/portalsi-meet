@@ -1,7 +1,41 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Copy, Check, Eye, EyeOff, Clock, Shield, Wifi } from 'lucide-react';
+import { useLocalParticipant } from '@livekit/components-react';
+import { ConnectionQuality } from 'livekit-client';
+import { X, Copy, Check, Eye, EyeOff, Clock, Shield } from 'lucide-react';
+
+function SignalBars() {
+  const { localParticipant } = useLocalParticipant();
+  const [quality, setQuality] = useState(localParticipant.connectionQuality);
+
+  useEffect(() => {
+    const iv = setInterval(() => setQuality(localParticipant.connectionQuality), 1000);
+    return () => clearInterval(iv);
+  }, [localParticipant]);
+
+  const bars = quality === ConnectionQuality.Excellent ? 3 : quality === ConnectionQuality.Good ? 2 : quality === ConnectionQuality.Poor ? 1 : 0;
+  const color = bars >= 3 ? '#22c55e' : bars === 2 ? '#eab308' : bars === 1 ? '#ef4444' : '#6b7280';
+  const label = bars >= 3 ? 'Sangat Baik' : bars === 2 ? 'Cukup Baik' : bars === 1 ? 'Buruk' : 'Mengecek...';
+
+  return (
+    <div className="flex items-center gap-3 bg-white/[0.04] rounded-xl px-4 py-3">
+      <div className="flex items-end gap-[3px] h-5 w-5 shrink-0">
+        {[1, 2, 3].map(i => (
+          <div key={i} style={{
+            width: 4, height: i === 1 ? 8 : i === 2 ? 13 : 18, borderRadius: 2,
+            background: i <= bars ? color : 'rgba(255,255,255,0.1)',
+            transition: 'background 0.3s ease',
+          }} />
+        ))}
+      </div>
+      <div>
+        <p className="text-xs text-white/40">Koneksi</p>
+        <p className="text-sm font-medium" style={{ color }}>{label}</p>
+      </div>
+    </div>
+  );
+}
 
 export function InfoPanel({ roomId, isHost, password, startTime, onClose }: {
   roomId: string; isHost: boolean; password?: string; startTime: number; onClose: () => void;
@@ -59,10 +93,7 @@ export function InfoPanel({ roomId, isHost, password, startTime, onClose }: {
           <Clock className="h-5 w-5 text-[#8ab4f8] shrink-0" />
           <div><p className="text-xs text-white/40">Durasi Meeting</p><p className="text-lg font-bold font-mono text-white/90 tabular-nums">{fmt(elapsed)}</p></div>
         </div>
-        <div className="flex items-center gap-3 bg-white/[0.04] rounded-xl px-4 py-3">
-          <Wifi className="h-5 w-5 text-green-400 shrink-0" />
-          <div><p className="text-xs text-white/40">Koneksi</p><p className="text-sm font-medium text-green-400">Stabil</p></div>
-        </div>
+        <SignalBars />
         <div className="flex items-center gap-3 bg-white/[0.04] rounded-xl px-4 py-3">
           <Shield className="h-5 w-5 text-yellow-400 shrink-0" />
           <div><p className="text-xs text-white/40">Peran Anda</p><p className="text-sm font-medium text-white/80">{isHost ? 'Host (Admin)' : 'Peserta'}</p></div>

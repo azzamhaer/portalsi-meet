@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ControlBar, useParticipants } from '@livekit/components-react';
 import {
   PhoneOff, Info, Users, MessageSquare, Settings, Hand, Smile,
-  Copy, MoreVertical, LayoutGrid, Monitor,
+  Copy, MoreVertical, LayoutGrid, Monitor, ScreenShare,
   Maximize, EyeOff, Grid3X3,
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
@@ -29,12 +29,11 @@ export function BottomBar({
   const [showMobileMore, setShowMobileMore] = useState(false);
   const participants = useParticipants();
 
-  // Clock
-  useState(() => { const iv = setInterval(() => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), 1000); return () => clearInterval(iv); });
+  useState(() => { setInterval(() => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), 1000); });
 
   const copyId = async () => { try { await navigator.clipboard.writeText(roomId); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {} };
   const toggle = (p: PanelType) => onPanelChange(activePanel === p ? null : p);
-  const closeAll = () => { setShowReactions(false); setShowViewMenu(false); setShowMobileMore(false); };
+  const closePopups = () => { setShowReactions(false); setShowViewMenu(false); setShowMobileMore(false); };
 
   return (
     <>
@@ -74,22 +73,35 @@ export function BottomBar({
         </div>
       )}
 
-      {/* Mobile more */}
+      {/* === MOBILE MORE MENU (hamburger) === */}
       {showMobileMore && (
-        <div className="md:hidden absolute bottom-[88px] right-2 z-50 glass-panel rounded-2xl p-2 flex flex-col gap-1 animate-scale-in min-w-[180px]"
+        <div className="md:hidden absolute bottom-[88px] right-2 z-50 glass-panel rounded-2xl py-2 min-w-[200px] animate-scale-in"
              onClick={e => e.stopPropagation()}>
-          <MItem icon={<Info className="h-4 w-4" />} label="Info" active={activePanel === 'info'} onClick={() => { toggle('info'); setShowMobileMore(false); }} />
-          <MItem icon={<Settings className="h-4 w-4" />} label="Pengaturan" active={activePanel === 'settings'} onClick={() => { toggle('settings'); setShowMobileMore(false); }} />
-          <MItem icon={<LayoutGrid className="h-4 w-4" />} label="View" onClick={() => { setShowViewMenu(v => !v); setShowMobileMore(false); }} />
+          <p className="px-4 py-1.5 text-[11px] font-semibold text-white/30 uppercase tracking-wider">Menu</p>
+          <MItem icon={<Users className="h-4 w-4" />} label={`Peserta (${participants.length})`} active={activePanel === 'participants'}
+            onClick={() => { toggle('participants'); setShowMobileMore(false); }} />
+          <MItem icon={<MessageSquare className="h-4 w-4" />} label="Chat" active={activePanel === 'chat'}
+            onClick={() => { toggle('chat'); setShowMobileMore(false); }} />
+          <MItem icon={<Smile className="h-4 w-4" />} label="Reaksi"
+            onClick={() => { setShowReactions(v => !v); setShowMobileMore(false); }} />
+          <MItem icon={<Hand className="h-4 w-4" />} label={handRaised ? 'Turunkan Tangan' : 'Angkat Tangan'} active={handRaised}
+            onClick={() => { onToggleHand(); setShowMobileMore(false); }} />
+          <hr className="border-white/[0.06] my-1 mx-3" />
+          <MItem icon={<Info className="h-4 w-4" />} label="Info Meeting" active={activePanel === 'info'}
+            onClick={() => { toggle('info'); setShowMobileMore(false); }} />
+          <MItem icon={<Settings className="h-4 w-4" />} label="Pengaturan" active={activePanel === 'settings'}
+            onClick={() => { toggle('settings'); setShowMobileMore(false); }} />
+          <MItem icon={<LayoutGrid className="h-4 w-4" />} label="Tampilan"
+            onClick={() => { setShowViewMenu(v => !v); setShowMobileMore(false); }} />
         </div>
       )}
 
       {/* MAIN BAR */}
       <div className="absolute bottom-0 left-0 right-0 h-[80px] flex items-center justify-between px-3 sm:px-5 z-30"
            style={{ background: 'linear-gradient(to top, rgba(5,5,8,0.97) 0%, rgba(5,5,8,0.7) 70%, transparent 100%)' }}
-           onClick={() => closeAll()}>
+           onClick={closePopups}>
 
-        {/* Left */}
+        {/* === LEFT (desktop only) === */}
         <div className="hidden md:flex items-center gap-3 text-sm min-w-[200px]" onClick={e => e.stopPropagation()}>
           <span className="font-medium text-white/50 tabular-nums">{time}</span>
           <span className="text-white/15">|</span>
@@ -100,29 +112,47 @@ export function BottomBar({
           {copied && <span className="text-xs text-green-400">Tersalin!</span>}
         </div>
 
-        {/* Center */}
+        {/* === CENTER === */}
         <div className="flex items-center gap-1.5 sm:gap-2" onClick={e => e.stopPropagation()}>
-          <ControlBar controls={{ microphone: true, camera: true, screenShare: true, chat: false, leave: false }} variation="minimal" className="!bg-transparent !p-0 !gap-1.5" />
-          <Tooltip text="Reaksi">
-            <button onClick={() => { setShowReactions(v => !v); setShowViewMenu(false); }}
-              className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${showReactions ? 'active' : ''}`}>
-              <Smile className="h-5 w-5" />
-            </button>
-          </Tooltip>
-          <Tooltip text={handRaised ? 'Turunkan Tangan' : 'Angkat Tangan'}>
-            <button onClick={onToggleHand}
-              className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${handRaised ? 'active !bg-yellow-500/20 !border-yellow-500/30 !text-yellow-400' : ''}`}>
-              <Hand className="h-5 w-5" />
-            </button>
-          </Tooltip>
+          {/* Mic + Cam with device pickers (LiveKit ControlBar) */}
+          <ControlBar controls={{ microphone: true, camera: true, screenShare: false, chat: false, leave: false }} variation="minimal"
+            className="!bg-transparent !p-0 !gap-1.5" />
+
+          {/* Screen share — desktop only in center */}
+          <div className="hidden md:block">
+            <ControlBar controls={{ microphone: false, camera: false, screenShare: true, chat: false, leave: false }} variation="minimal"
+              className="!bg-transparent !p-0" />
+          </div>
+
+          {/* Reactions — desktop only */}
+          <div className="hidden md:block">
+            <Tooltip text="Reaksi">
+              <button onClick={() => { setShowReactions(v => !v); setShowViewMenu(false); }}
+                className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${showReactions ? 'active' : ''}`}>
+                <Smile className="h-5 w-5" />
+              </button>
+            </Tooltip>
+          </div>
+
+          {/* Hand raise — desktop only */}
+          <div className="hidden md:block">
+            <Tooltip text={handRaised ? 'Turunkan Tangan' : 'Angkat Tangan'}>
+              <button onClick={onToggleHand}
+                className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${handRaised ? 'active !bg-yellow-500/20 !border-yellow-500/30 !text-yellow-400' : ''}`}>
+                <Hand className="h-5 w-5" />
+              </button>
+            </Tooltip>
+          </div>
+
+          {/* Leave */}
           <Tooltip text="Tinggalkan">
-            <button onClick={onLeave} className="ml-1 h-12 px-6 sm:px-7 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-400 text-white shadow-[0_0_20px_rgba(234,67,53,0.3)] active:scale-95 transition-all">
+            <button onClick={onLeave} className="ml-1 h-12 px-5 sm:px-7 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-400 text-white shadow-[0_0_20px_rgba(234,67,53,0.3)] active:scale-95 transition-all">
               <PhoneOff className="h-5 w-5" />
             </button>
           </Tooltip>
         </div>
 
-        {/* Right desktop */}
+        {/* === RIGHT (desktop) === */}
         <div className="hidden md:flex items-center gap-1.5 min-w-[200px] justify-end" onClick={e => e.stopPropagation()}>
           <Tooltip text="Info"><button onClick={() => toggle('info')} className={`glass-button rounded-full h-10 w-10 flex items-center justify-center ${activePanel === 'info' ? 'active' : ''}`}><Info className="h-5 w-5" /></button></Tooltip>
           <Tooltip text="Peserta">
@@ -139,14 +169,12 @@ export function BottomBar({
           </Tooltip>
         </div>
 
-        {/* Right mobile */}
-        <div className="flex md:hidden items-center gap-1" onClick={e => e.stopPropagation()}>
-          <button onClick={() => toggle('participants')} className={`p-2.5 rounded-full relative ${activePanel === 'participants' ? 'text-[#8ab4f8]' : 'text-white/60'}`}>
-            <Users className="h-5 w-5" />
-            <span className="absolute -top-0.5 -right-0.5 text-[9px] bg-[#8ab4f8] text-black rounded-full h-3.5 min-w-[14px] flex items-center justify-center font-bold px-0.5">{participants.length}</span>
+        {/* === RIGHT (mobile) — only hamburger === */}
+        <div className="flex md:hidden items-center" onClick={e => e.stopPropagation()}>
+          <button onClick={() => setShowMobileMore(v => !v)}
+            className={`p-2.5 rounded-full transition-colors ${showMobileMore ? 'text-[#8ab4f8] bg-[#8ab4f8]/10' : 'text-white/60'}`}>
+            <MoreVertical className="h-5 w-5" />
           </button>
-          <button onClick={() => toggle('chat')} className={`p-2.5 rounded-full ${activePanel === 'chat' ? 'text-[#8ab4f8]' : 'text-white/60'}`}><MessageSquare className="h-5 w-5" /></button>
-          <button onClick={() => setShowMobileMore(v => !v)} className={`p-2.5 rounded-full ${showMobileMore ? 'text-[#8ab4f8]' : 'text-white/60'}`}><MoreVertical className="h-5 w-5" /></button>
         </div>
       </div>
     </>
@@ -155,7 +183,7 @@ export function BottomBar({
 
 function MItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all ${active ? 'bg-[#8ab4f8]/15 text-[#8ab4f8]' : 'text-white/60 hover:bg-white/[0.05]'}`}>
+    <button onClick={onClick} className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm transition-all ${active ? 'bg-[#8ab4f8]/15 text-[#8ab4f8]' : 'text-white/60 hover:bg-white/[0.05]'}`}>
       {icon}<span className="font-medium">{label}</span>
     </button>
   );
