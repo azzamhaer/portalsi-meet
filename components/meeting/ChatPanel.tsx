@@ -1,23 +1,190 @@
 'use client';
 
-import { Chat } from '@livekit/components-react';
-import { MessageSquare, X } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useChat, useLocalParticipant } from '@livekit/components-react';
+import { MessageSquare, X, Send, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+
+interface ChatMsg {
+  id: string;
+  text: string;
+  senderName: string;
+  senderIdentity: string;
+  ts: number;
+  edited?: boolean;
+  editedAt?: number;
+  deleted?: boolean;
+  deletedAt?: number;
+}
 
 export function ChatPanel({ onClose }: { onClose: () => void }) {
+  const { send, chatMessages } = useChat();
+  const { localParticipant } = useLocalParticipant();
+  const [input, setInput] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+
+  // Process raw chatMessages into display messages
+  useEffect(() => {
+    const map = new Map<string, ChatMsg>();
+    for (const cm of chatMessages) {
+      try {
+        const d = JSON.parse(cm.message);
+        if (d.t === 'm') {
+          map.set(d.i, { id: d.i, text: d.x, senderName: d.n, senderIdentity: d.s, ts: d.ts });
+        } else if (d.t === 'e' && map.has(d.i)) {
+          const m = map.get(d.i)!;
+          m.text = d.x; m.edited = true; m.editedAt = d.ts;
+        } else if (d.t === 'd' && map.has(d.i)) {
+          const m = map.get(d.i)!;
+          m.deleted = true; m.deletedAt = d.ts;
+        }
+      } catch {
+        // Plain text fallback
+        map.set(cm.id, {
+          id: cm.id, text: cm.message,
+          senderName: cm.from?.name || 'Anonim',
+          senderIdentity: cm.from?.identity || '',
+          ts: cm.timestamp,
+        });
+      }
+    }
+    setMessages(Array.from(map.values()));
+  }, [chatMessages]);
+
+  // Auto scroll
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
+  const sendMsg = useCallback(async () => {
+    if (!input.trim() || !send) return;
+    if (editingId) {
+      await send(JSON.stringify({ t: 'e', i: editingId, x: input.trim(), ts: Date.now() }));
+      setEditingId(null);
+    } else {
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      await send(JSON.stringify({
+        t: 'm', i: id, x: input.trim(),
+        n: localParticipant.name || 'Anonim',
+        s: localParticipant.identity,
+        ts: Date.now(),
+      }));
+    }
+    setInput('');
+  }, [input, editingId, send, localParticipant]);
+
+  const deleteMsg = useCallback(async (id: string) => {
+    if (!send) return;
+    await send(JSON.stringify({ t: 'd', i: id, ts: Date.now() }));
+    setMenuId(null);
+  }, [send]);
+
+  const startEdit = (msg: ChatMsg) => {
+    setEditingId(msg.id);
+    setInput(msg.text);
+    setMenuId(null);
+  };
+
+  const cancelEdit = () => { setEditingId(null); setInput(''); };
+
+  const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
   return (
     <aside className="flex flex-col h-full w-full md:w-[340px] glass-panel md:rounded-2xl overflow-hidden animate-slide-in-right">
-      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
         <h2 className="text-sm font-semibold text-white/90 flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-meet-accent" /> Pesan
+          <MessageSquare className="h-4 w-4 text-[#8ab4f8]" /> Pesan
         </h2>
-        <button onClick={onClose} className="glass-button rounded-full p-1.5">
-          <X className="h-4 w-4 text-white/70" />
-        </button>
+        <button onClick={onClose} className="glass-button rounded-full p-1.5"><X className="h-4 w-4 text-white/70" /></button>
       </div>
-      {/* Chat Body */}
-      <div className="flex-1 overflow-hidden">
-        <Chat className="h-full" />
+
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto meet-scrollbar p-4 space-y-3">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-white/20 text-sm">
+            <MessageSquare className="h-8 w-8 mb-2 opacity-50" />
+            <p>Belum ada pesan</p>
+          </div>
+        )}
+        {messages.map((msg) => {
+          const isMe = msg.senderIdentity === localParticipant.identity;
+          return (
+            <div key={msg.id} className={`group relative ${isMe ? 'pl-8' : 'pr-8'}`}>
+              <div className={`rounded-2xl px-3.5 py-2.5 text-sm ${
+                msg.deleted
+                  ? 'bg-white/[0.03] border border-white/[0.04]'
+                  : isMe ? 'bg-[#8ab4f8]/15 ml-auto' : 'bg-white/[0.06]'
+              } ${isMe ? 'text-right' : ''}`}>
+                {/* Sender name */}
+                <p className={`text-[11px] font-semibold mb-1 ${isMe ? 'text-[#8ab4f8]' : 'text-[#81c995]'}`}>
+                  {msg.senderName} {isMe && '(Anda)'}
+                </p>
+
+                {msg.deleted ? (
+                  <p className="italic text-white/25 text-[13px]">
+                    Pesan dihapus · {msg.deletedAt && fmtTime(msg.deletedAt)}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-white/85 text-[13px] break-words whitespace-pre-wrap">{msg.text}</p>
+                    <div className={`flex items-center gap-1.5 mt-1 text-[10px] text-white/25 ${isMe ? 'justify-end' : ''}`}>
+                      <span>{fmtTime(msg.ts)}</span>
+                      {msg.edited && <span>· diedit {msg.editedAt && fmtTime(msg.editedAt)}</span>}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Menu for own messages */}
+              {isMe && !msg.deleted && (
+                <div className="absolute top-1 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => setMenuId(menuId === msg.id ? null : msg.id)}
+                    className="p-1 rounded-full hover:bg-white/10">
+                    <MoreVertical className="h-3.5 w-3.5 text-white/40" />
+                  </button>
+                  {menuId === msg.id && (
+                    <div className="absolute right-0 top-full mt-1 bg-[#121218] border border-white/[0.08] rounded-xl shadow-lg z-50 py-1 min-w-[140px] animate-scale-in">
+                      <button onClick={() => startEdit(msg)}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors">
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </button>
+                      <button onClick={() => deleteMsg(msg.id)}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-400/10 transition-colors">
+                        <Trash2 className="h-3.5 w-3.5" /> Hapus
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Input */}
+      <div className="p-3 border-t border-white/[0.06]">
+        {editingId && (
+          <div className="flex items-center justify-between px-3 py-1.5 mb-2 bg-[#8ab4f8]/10 rounded-lg text-xs">
+            <span className="text-[#8ab4f8]">✏️ Mengedit pesan</span>
+            <button onClick={cancelEdit} className="text-white/40 hover:text-white/70">Batal</button>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMsg())}
+            placeholder="Ketik pesan..."
+            className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-[#8ab4f8]/30 transition-all"
+          />
+          <button onClick={sendMsg}
+            className={`p-2.5 rounded-full transition-all ${input.trim() ? 'bg-[#8ab4f8] text-black' : 'bg-white/[0.05] text-white/20'}`}
+            disabled={!input.trim()}>
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </aside>
   );

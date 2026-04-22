@@ -44,16 +44,16 @@ const config: Config = {
         },
         // Dark meeting theme tokens
         meet: {
-          bg: '#1a1a2e',
-          'bg-elevated': '#16213e',
-          'bg-card': '#0f3460',
-          surface: '#202040',
-          'surface-hover': '#2a2a4a',
+          bg: '#0a0a0f',
+          'bg-elevated': '#111118',
+          'bg-card': '#141418',
+          surface: '#141418',
+          'surface-hover': '#1e1e24',
           accent: '#8ab4f8',
           'accent-hover': '#aecbfa',
           danger: '#ea4335',
           'danger-hover': '#f44336',
-          border: 'rgba(255,255,255,0.08)',
+          border: 'rgba(255,255,255,0.06)',
           'text-primary': '#e8eaed',
           'text-secondary': '#9aa0a6',
           'text-muted': '#5f6368',
@@ -120,8 +120,8 @@ const config: Config = {
       backgroundImage: {
         'gradient-brand': 'linear-gradient(135deg, #FFD700 0%, #00FFFF 100%)',
         'brutal-dots': 'radial-gradient(#000 1px, transparent 1px)',
-        'gradient-meet': 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-        'gradient-meet-subtle': 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)',
+        'gradient-meet': 'linear-gradient(135deg, #0a0a0f 0%, #111118 50%, #141418 100%)',
+        'gradient-meet-subtle': 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%)',
       },
       boxShadow: {
         'brutal': '4px 4px 0px 0px rgba(0,0,0,1)',
