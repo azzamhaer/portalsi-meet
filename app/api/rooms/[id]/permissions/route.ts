@@ -19,13 +19,14 @@ export async function PATCH(
   const { hostIdentity, permissions } = body;
   if (hostIdentity !== room.hostIdentity) return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
 
-  const p = room.permissions || {};
+  const p = room.permissions || {} as any;
   room.permissions = {
     allowChat: permissions?.allowChat ?? p.allowChat ?? true,
     allowScreenShare: permissions?.allowScreenShare ?? p.allowScreenShare ?? true,
     allowJoin: permissions?.allowJoin ?? p.allowJoin ?? true,
     allowReactions: permissions?.allowReactions ?? p.allowReactions ?? true,
     lobbyMode: permissions?.lobbyMode ?? p.lobbyMode ?? false,
+    allowRename: permissions?.allowRename ?? p.allowRename ?? true,
   };
 
   await saveRoom(room);

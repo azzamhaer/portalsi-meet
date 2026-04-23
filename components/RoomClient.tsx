@@ -8,8 +8,13 @@ import { MeetingRoom } from './MeetingRoom';
 import { PreJoinScreen } from './PreJoinScreen';
 
 interface ConnectionInfo { token: string; wsUrl: string; name: string; isHost: boolean; password?: string; }
-
 type State = 'loading' | 'need-name' | 'need-password' | 'joining' | 'pre-join' | 'waiting-lobby' | 'connected' | 'error' | 'not-found';
+
+function getBrowserId(): string {
+  let id = localStorage.getItem('portalsi-bid');
+  if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('portalsi-bid', id); }
+  return id;
+}
 
 export function RoomClient({ roomId }: { roomId: string }) {
   const router = useRouter();
@@ -50,41 +55,50 @@ export function RoomClient({ roomId }: { roomId: string }) {
     try {
       const res = await fetch(`/api/rooms/${roomId}/join`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: n, password: pw }),
+        body: JSON.stringify({ name: n, password: pw, browserId: getBrowserId() }),
       });
       const data = await res.json();
       if (!res.ok && res.status !== 202) {
-        if (res.status === 401 && data.requiresPassword) { setRequiresPassword(true); setState('need-password'); setError('Password salah.'); return; }
+        if (res.status === 401 && data.requiresPassword) {
+          setRequiresPassword(true);
+          setState('need-password');
+          setError(pw ? 'Password salah.' : null);
+          return;
+        }
         if (res.status === 404) { setState('not-found'); return; }
+        if (res.status === 403) { setState('error'); setError(data.error || 'Akses ditolak.'); return; }
         throw new Error(data.error || 'Gagal bergabung.');
       }
       if (res.status === 202 && data.status === 'waiting') {
-        // Lobby mode — go to waiting
         setWaitingId(data.waitingId);
         setWaitingStatus('waiting');
         setState('waiting-lobby');
         return;
       }
+      // Token received — show pre-join so user can configure mic/cam before connecting
       setConn({ token: data.token, wsUrl: data.wsUrl, name: n, isHost: false });
-      setState('connected');
+      setState('pre-join');
     } catch (e: any) { setError(e.message); setState('error'); }
   }, [roomId]);
 
   useEffect(() => {
+    // Host reconnect
     const hostData = sessionStorage.getItem(`lk-${roomId}`);
     if (hostData) {
       try { const p = JSON.parse(hostData); setConn(p); setName(p.name); setState('connected'); return; } catch {}
     }
+    // Join from homepage → validate password immediately
     const joinData = sessionStorage.getItem(`lk-join-${roomId}`);
     if (joinData) {
       try {
-        const p = JSON.parse(joinData); sessionStorage.removeItem(`lk-join-${roomId}`);
+        const p = JSON.parse(joinData);
+        sessionStorage.removeItem(`lk-join-${roomId}`);
         setName(p.name); setPassword(p.password || '');
-        // Go to pre-join instead of directly joining
-        setState('pre-join');
+        performJoin(p.name, p.password);
         return;
       } catch {}
     }
+    // Fresh visit
     (async () => {
       try {
         const res = await fetch(`/api/rooms/${roomId}`);
@@ -95,17 +109,17 @@ export function RoomClient({ roomId }: { roomId: string }) {
         setState(data.requiresPassword ? 'need-password' : 'need-name');
       } catch { setState('error'); setError('Tidak bisa memuat info ruang.'); }
     })();
-  }, [roomId]);
+  }, [roomId, performJoin]);
 
   function onSubmitName(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    // Go to pre-join screen instead of directly joining
-    setState('pre-join');
+    performJoin(name.trim(), password || undefined);
   }
 
-  function handlePreJoinConfirm(result: { micEnabled: boolean; camEnabled: boolean }) {
-    performJoin(name.trim(), password || undefined);
+  function handlePreJoinConnect() {
+    // Token already in conn — connect now
+    setState('connected');
   }
 
   if (state === 'loading' || state === 'joining') return <LoadingScreen label={state === 'joining' ? 'Menghubungkan…' : 'Memuat…'} />;
@@ -113,9 +127,11 @@ export function RoomClient({ roomId }: { roomId: string }) {
   if (state === 'error') return <ErrorScreen title="Terjadi kesalahan" message={error || 'Unknown error.'} />;
   if (state === 'connected' && conn) return <MeetingRoom roomId={roomId} token={conn.token} wsUrl={conn.wsUrl} name={conn.name} isHost={conn.isHost} password={conn.password} onLeave={() => router.push('/')} />;
 
-  if (state === 'pre-join' || state === 'waiting-lobby') {
-    return <PreJoinScreen roomId={roomId} name={name} onJoin={handlePreJoinConfirm}
-      isWaiting={state === 'waiting-lobby'} waitingStatus={waitingStatus} />;
+  if (state === 'pre-join') {
+    return <PreJoinScreen roomId={roomId} name={name} onJoin={handlePreJoinConnect} />;
+  }
+  if (state === 'waiting-lobby') {
+    return <PreJoinScreen roomId={roomId} name={name} onJoin={handlePreJoinConnect} isWaiting waitingStatus={waitingStatus} />;
   }
 
   // need-name / need-password
@@ -148,7 +164,7 @@ export function RoomClient({ roomId }: { roomId: string }) {
                 </div>
               )}
               {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
-              <button type="submit" className="btn-primary w-full">Lanjut</button>
+              <button type="submit" className="btn-primary w-full">Gabung Meeting</button>
             </form>
           </div>
         </div>

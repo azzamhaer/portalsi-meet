@@ -82,16 +82,23 @@ export async function POST(
     );
   }
 
-  // Lobby mode: put user in waiting room
-  if (room.permissions?.lobbyMode) {
-    const { addWaiting } = await import('@/lib/rooms');
-    const waitingId = `w-${randomUUID()}`;
-    await addWaiting(id, { waitingId, name, ts: Date.now() });
-    return NextResponse.json({
-      status: 'waiting',
-      waitingId,
-      roomId: id,
-    }, { status: 202 });
+  const browserId = body.browserId ? String(body.browserId).slice(0, 64) : '';
+
+  // Lobby mode: put user in waiting room (unless they've joined before)
+  if (room.permissions?.lobbyMode && browserId) {
+    const { default: redis } = await import('@/lib/redis');
+    const knownKey = `known:${id}`;
+    const isKnown = await redis.sismember(knownKey, browserId);
+    if (!isKnown) {
+      const { addWaiting } = await import('@/lib/rooms');
+      const waitingId = `w-${randomUUID()}`;
+      await addWaiting(id, { waitingId, name, ts: Date.now() });
+      return NextResponse.json({
+        status: 'waiting',
+        waitingId,
+        roomId: id,
+      }, { status: 202 });
+    }
   }
 
   const identity = `user-${randomUUID()}`;
@@ -102,6 +109,13 @@ export async function POST(
     name,
     isHost: false,
   });
+
+  // Remember this browser as known for this room
+  if (browserId) {
+    const { default: redis } = await import('@/lib/redis');
+    await redis.sadd(`known:${id}`, browserId);
+    await redis.expire(`known:${id}`, 24 * 60 * 60);
+  }
 
   return NextResponse.json({
     roomId: id,

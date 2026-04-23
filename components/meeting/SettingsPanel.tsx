@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users } from 'lucide-react';
+import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users, Pencil } from 'lucide-react';
 import type { RoomPerms } from '../MeetingRoom';
 
 export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll }: {
@@ -42,6 +42,7 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
             <hr className="border-white/[0.06]" />
 
             <Toggle icon={<Users className="h-4 w-4 text-orange-400" />} title="Mode Lobi" desc="User baru harus menunggu persetujuan" active={perms.lobbyMode} onToggle={() => onPermsChange({ ...perms, lobbyMode: !perms.lobbyMode })} />
+            <Toggle icon={<Pencil className="h-4 w-4 text-cyan-400" />} title="Izinkan Ganti Nama" desc="Peserta bisa mengubah nama mereka" active={perms.allowRename} onToggle={() => onPermsChange({ ...perms, allowRename: !perms.allowRename })} />
 
             <hr className="border-white/[0.06]" />
 

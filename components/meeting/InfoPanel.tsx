@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useLocalParticipant } from '@livekit/components-react';
 import { ConnectionQuality } from 'livekit-client';
-import { X, Copy, Check, Eye, EyeOff, Clock, Shield } from 'lucide-react';
+import { X, Copy, Check, Eye, EyeOff, Clock, Shield, Pencil } from 'lucide-react';
 
 function SignalBars() {
   const { localParticipant } = useLocalParticipant();
@@ -37,12 +37,16 @@ function SignalBars() {
   );
 }
 
-export function InfoPanel({ roomId, isHost, password, startTime, onClose }: {
+export function InfoPanel({ roomId, isHost, password, startTime, onClose, allowRename, onRename }: {
   roomId: string; isHost: boolean; password?: string; startTime: number; onClose: () => void;
+  allowRename?: boolean; onRename?: (name: string) => void;
 }) {
+  const { localParticipant } = useLocalParticipant();
   const [copied, setCopied] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [newName, setNewName] = useState(localParticipant.name || '');
 
   useEffect(() => {
     const iv = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000);
@@ -59,6 +63,16 @@ export function InfoPanel({ roomId, isHost, password, startTime, onClose }: {
     if (password) text += ` | pw:${btoa(password)}`;
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
   }
+
+  function handleRename() {
+    const trimmed = newName.trim();
+    if (trimmed && trimmed !== localParticipant.name && onRename) {
+      onRename(trimmed);
+    }
+    setEditing(false);
+  }
+
+  const canRename = isHost || (allowRename !== false);
 
   return (
     <aside className="flex flex-col h-full w-full md:w-[340px] glass-panel md:rounded-2xl overflow-hidden animate-slide-in-right">
@@ -97,6 +111,32 @@ export function InfoPanel({ roomId, isHost, password, startTime, onClose }: {
         <div className="flex items-center gap-3 bg-white/[0.04] rounded-xl px-4 py-3">
           <Shield className="h-5 w-5 text-yellow-400 shrink-0" />
           <div><p className="text-xs text-white/40">Peran Anda</p><p className="text-sm font-medium text-white/80">{isHost ? 'Host (Admin)' : 'Peserta'}</p></div>
+        </div>
+
+        {/* Rename */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-1.5">
+            <Pencil className="h-3 w-3" /> Nama Anda
+          </label>
+          {editing ? (
+            <div className="flex items-center gap-2">
+              <input type="text" value={newName} onChange={e => setNewName(e.target.value)} maxLength={40} autoFocus
+                onKeyDown={e => e.key === 'Enter' && handleRename()}
+                className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-[#8ab4f8]/40" />
+              <button onClick={handleRename} className="glass-button rounded-xl p-2.5 text-green-400"><Check className="h-4 w-4" /></button>
+              <button onClick={() => { setEditing(false); setNewName(localParticipant.name || ''); }} className="glass-button rounded-xl p-2.5 text-white/40"><X className="h-4 w-4" /></button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80">{localParticipant.name || 'Anonim'}</div>
+              {canRename && (
+                <button onClick={() => { setNewName(localParticipant.name || ''); setEditing(true); }} className="glass-button rounded-xl p-2.5 shrink-0" title="Ganti Nama">
+                  <Pencil className="h-4 w-4 text-white/70" />
+                </button>
+              )}
+            </div>
+          )}
+          {!canRename && <p className="text-[11px] text-white/30">Ganti nama dinonaktifkan oleh host.</p>}
         </div>
       </div>
     </aside>

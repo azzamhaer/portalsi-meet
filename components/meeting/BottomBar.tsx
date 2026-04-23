@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { ControlBar, useParticipants, useTracks } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { useParticipants, useLocalParticipant } from '@livekit/components-react';
 import {
   PhoneOff, Info, Users, MessageSquare, Settings, Hand, Smile,
-  Copy, MoreVertical, LayoutGrid, ScreenShare,
+  Copy, MoreVertical, LayoutGrid, ScreenShare, ScreenShareOff,
+  Mic, MicOff, Video, VideoOff,
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 import type { PanelType } from './types';
+import type { RoomPerms } from '../MeetingRoom';
 
 export type ViewMode = 'standard' | 'speaker' | 'gallery';
 const REACTIONS = ['👍', '👏', '😂', '❤️', '🎉', '🤔', '👋'];
@@ -16,20 +17,22 @@ const REACTIONS = ['👍', '👏', '😂', '❤️', '🎉', '🤔', '👋'];
 export function BottomBar({
   roomId, activePanel, onPanelChange, onLeave,
   onReaction, handRaised, onToggleHand,
-  unreadCount, permissions, isHost, onScreenShare,
+  unreadCount, permissions, isHost,
 }: {
   roomId: string; activePanel: PanelType; onPanelChange: (p: PanelType) => void; onLeave: () => void;
   onReaction: (emoji: string) => void; handRaised: boolean; onToggleHand: () => void;
-  unreadCount: number;
-  permissions: { allowChat: boolean; allowScreenShare: boolean };
-  isHost: boolean;
-  onScreenShare: () => void;
+  unreadCount: number; permissions: RoomPerms; isHost: boolean;
 }) {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [copied, setCopied] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [showMobileMore, setShowMobileMore] = useState(false);
   const participants = useParticipants();
+  const { localParticipant } = useLocalParticipant();
+
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
+  const [sharing, setSharing] = useState(false);
 
   useState(() => { setInterval(() => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), 1000); });
 
@@ -38,10 +41,28 @@ export function BottomBar({
   const closePopups = () => { setShowReactions(false); setShowMobileMore(false); };
 
   const canShare = isHost || permissions.allowScreenShare;
+  const canReact = isHost || permissions.allowReactions;
+
+  const toggleMic = async () => {
+    try { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); setMicOn(!localParticipant.isMicrophoneEnabled); } catch {}
+  };
+  const toggleCam = async () => {
+    try { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); setCamOn(!localParticipant.isCameraEnabled); } catch {}
+  };
+  const toggleShare = async () => {
+    try {
+      if (sharing) { await localParticipant.setScreenShareEnabled(false); setSharing(false); }
+      else { await localParticipant.setScreenShareEnabled(true); setSharing(true); }
+    } catch { setSharing(false); }
+  };
+
+  // Sync state from participant
+  const isMicOn = localParticipant.isMicrophoneEnabled;
+  const isCamOn = localParticipant.isCameraEnabled;
 
   return (
     <>
-      {/* Reaction picker — use fixed positioning to avoid jump */}
+      {/* Reaction picker */}
       {showReactions && (
         <div className="fixed bottom-[88px] left-0 right-0 z-50 flex justify-center pointer-events-none">
           <div className="glass-panel rounded-2xl px-3 py-2 flex gap-1 animate-scale-in pointer-events-auto"
@@ -63,10 +84,10 @@ export function BottomBar({
             onClick={() => { toggle('participants'); setShowMobileMore(false); }} />
           <MItem icon={<MessageSquare className="h-4 w-4" />} label="Chat" active={activePanel === 'chat'} badge={unreadCount}
             onClick={() => { toggle('chat'); setShowMobileMore(false); }} />
-          <MItem icon={<ScreenShare className="h-4 w-4" />} label="Screen Share" disabled={!canShare}
-            onClick={() => { if (canShare) { onScreenShare(); setShowMobileMore(false); } }} />
-          <MItem icon={<Smile className="h-4 w-4" />} label="Reaksi"
-            onClick={() => { setShowReactions(v => !v); setShowMobileMore(false); }} />
+          {canShare && <MItem icon={<ScreenShare className="h-4 w-4" />} label="Screen Share"
+            onClick={() => { toggleShare(); setShowMobileMore(false); }} />}
+          {canReact && <MItem icon={<Smile className="h-4 w-4" />} label="Reaksi"
+            onClick={() => { setShowReactions(v => !v); setShowMobileMore(false); }} />}
           <MItem icon={<Hand className="h-4 w-4" />} label={handRaised ? 'Turunkan Tangan' : 'Angkat Tangan'} active={handRaised}
             onClick={() => { onToggleHand(); setShowMobileMore(false); }} />
           <hr className="border-white/[0.06] my-1 mx-3" />
@@ -95,24 +116,39 @@ export function BottomBar({
           {copied && <span className="text-xs text-green-400">Tersalin!</span>}
         </div>
 
-        {/* CENTER */}
+        {/* CENTER — custom mic/cam/share buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2" onClick={e => e.stopPropagation()}>
-          <ControlBar controls={{ microphone: true, camera: true, screenShare: false, chat: false, leave: false }} variation="minimal"
-            className="!bg-transparent !p-0 !gap-1.5" />
+          {/* Mic */}
+          <Tooltip text={isMicOn ? 'Matikan Mic' : 'Nyalakan Mic'}>
+            <button onClick={toggleMic}
+              className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!isMicOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
+              {isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+            </button>
+          </Tooltip>
+
+          {/* Cam */}
+          <Tooltip text={isCamOn ? 'Matikan Kamera' : 'Nyalakan Kamera'}>
+            <button onClick={toggleCam}
+              className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!isCamOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
+              {isCamOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+            </button>
+          </Tooltip>
 
           {/* Screen share — desktop */}
-          {canShare && (
-            <div className="hidden md:block">
-              <ControlBar controls={{ microphone: false, camera: false, screenShare: true, chat: false, leave: false }} variation="minimal"
-                className="!bg-transparent !p-0" />
-            </div>
-          )}
+          <div className="hidden md:block">
+            <Tooltip text={canShare ? (sharing ? 'Stop Share' : 'Share Layar') : 'Screen share dinonaktifkan'}>
+              <button onClick={canShare ? toggleShare : undefined} disabled={!canShare}
+                className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!canShare ? 'opacity-30 cursor-not-allowed' : sharing ? '!bg-green-500/20 !border-green-500/30 !text-green-400' : ''}`}>
+                {sharing ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />}
+              </button>
+            </Tooltip>
+          </div>
 
           {/* Reactions desktop */}
           <div className="hidden md:block">
-            <Tooltip text="Reaksi">
-              <button onClick={() => { setShowReactions(v => !v); }}
-                className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${showReactions ? 'active' : ''}`}>
+            <Tooltip text={canReact ? 'Reaksi' : 'Reaksi dinonaktifkan'}>
+              <button onClick={canReact ? () => setShowReactions(v => !v) : undefined} disabled={!canReact}
+                className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!canReact ? 'opacity-30 cursor-not-allowed' : showReactions ? 'active' : ''}`}>
                 <Smile className="h-5 w-5" />
               </button>
             </Tooltip>
@@ -173,10 +209,10 @@ export function BottomBar({
   );
 }
 
-function MItem({ icon, label, active, onClick, badge, disabled }: { icon: React.ReactNode; label: string; active?: boolean; onClick: () => void; badge?: number; disabled?: boolean }) {
+function MItem({ icon, label, active, onClick, badge }: { icon: React.ReactNode; label: string; active?: boolean; onClick: () => void; badge?: number }) {
   return (
-    <button onClick={onClick} disabled={disabled}
-      className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm transition-all ${disabled ? 'opacity-30 cursor-not-allowed' : ''} ${active ? 'bg-[#8ab4f8]/15 text-[#8ab4f8]' : 'text-white/60 hover:bg-white/[0.05]'}`}>
+    <button onClick={onClick}
+      className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm transition-all ${active ? 'bg-[#8ab4f8]/15 text-[#8ab4f8]' : 'text-white/60 hover:bg-white/[0.05]'}`}>
       {icon}<span className="font-medium flex-1 text-left">{label}</span>
       {badge && badge > 0 ? <span className="text-[10px] bg-red-500 text-white rounded-full h-4 min-w-[16px] flex items-center justify-center font-bold px-1">{badge}</span> : null}
     </button>

@@ -18,7 +18,7 @@ export interface ChatMsg {
   edited?: boolean; editedAt?: number; deleted?: boolean; deletedAt?: number;
 }
 export interface FloatingNotif { id: number; emoji?: string; text: string; name: string; }
-export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; }
+export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; }
 
 const roomOptions: RoomOptions = {
   adaptiveStream: true, dynacast: true,
@@ -60,7 +60,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const [floats, setFloats] = useState<FloatingNotif[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [focusedIdentity, setFocusedIdentity] = useState<string | null>(null);
-  const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false });
+  const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true });
   const [joinToasts, setJoinToasts] = useState<string[]>([]);
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
@@ -125,8 +125,15 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const [handRaised, setHandRaised] = useState(false);
   const toggleHand = useCallback(() => { const r = !handRaised; setHandRaised(r); const n = localParticipant.name || 'Anonim'; setRaisedHands(p => { const m = new Map(p); r ? m.set(localParticipant.identity, n) : m.delete(localParticipant.identity); return m; }); pub({ type: 'hand', raised: r, identity: localParticipant.identity, name: n }); }, [handRaised, pub, localParticipant]);
 
-  // Host actions
-  const broadcastPerms = useCallback((p: RoomPerms) => { setPerms(p); pub({ type: 'permissions', perms: p }); }, [pub]);
+  // Host actions — broadcast + persist to Redis
+  const broadcastPerms = useCallback((p: RoomPerms) => {
+    setPerms(p); pub({ type: 'permissions', perms: p });
+    // Persist to Redis so new joiners get the latest settings
+    fetch(`/api/rooms/${roomId}/permissions`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hostIdentity: localParticipant.identity, permissions: p }),
+    }).catch(() => {});
+  }, [pub, roomId, localParticipant.identity]);
   const muteAll = useCallback(() => { pub({ type: 'host_action', action: 'mute_all' }); }, [pub]);
   const muteVideoAll = useCallback(() => { pub({ type: 'host_action', action: 'mute_video_all' }); }, [pub]);
   const stopShare = useCallback((identity: string) => { pub({ type: 'host_action', action: 'stop_share', target: identity }); }, [pub]);
@@ -163,10 +170,6 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
     window.addEventListener('focus', handle);
     return () => { clearTimeout(to); document.removeEventListener('visibilitychange', handle); window.removeEventListener('blur', handle); window.removeEventListener('focus', handle); if (pipRef.current) { pipRef.current.close(); pipRef.current = null; } };
   }, [localParticipant]);
-
-  const handleScreenShare = useCallback(() => {
-    // This is called from mobile hamburger; on desktop LiveKit ControlBar handles it
-  }, []);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden relative">
@@ -208,7 +211,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
             <div className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setActivePanel(null)} />
             <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
               {activePanel === 'participants' && <ParticipantsPanel isHost={isHost} roomId={roomId} onClose={() => setActivePanel(null)} onStopShare={stopShare} />}
-              {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} />}
+              {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
               {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
             </div>
@@ -220,7 +223,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
       <BottomBar roomId={roomId} activePanel={activePanel} onPanelChange={setActivePanel}
         onLeave={() => setShowLeaveConfirm(true)} onReaction={sendReaction}
         handRaised={handRaised} onToggleHand={toggleHand} unreadCount={unreadCount}
-        permissions={perms} isHost={isHost} onScreenShare={handleScreenShare} />
+        permissions={perms} isHost={isHost} />
 
       {/* Leave Confirmation */}
       {showLeaveConfirm && (

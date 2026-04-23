@@ -7,6 +7,7 @@ export interface RoomPermissions {
   allowJoin: boolean;
   allowReactions: boolean;
   lobbyMode: boolean;
+  allowRename: boolean;
 }
 
 export interface RoomRecord {
@@ -39,7 +40,7 @@ export async function createRoom(opts: {
     id: opts.id, hostIdentity: opts.hostIdentity, hostName: opts.hostName,
     passwordHash: opts.password ? await bcrypt.hash(opts.password, 10) : undefined,
     lobby: opts.lobby ?? false, createdAt: Date.now(),
-    permissions: { allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false },
+    permissions: { allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true },
   };
   await redis.setex(roomKey(opts.id), ROOM_TTL, JSON.stringify(record));
   return record;
