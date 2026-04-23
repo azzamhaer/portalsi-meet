@@ -8,8 +8,12 @@ export default function HomePage() {
       <header className="w-full border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-dove-green to-dove-orange transition-transform group-hover:scale-105">
-              <span className="text-white font-black text-sm">:P</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden">
+              <img
+                src="/logo.png"
+                alt="logo"
+                className="h-full w-full object-cover"
+              />
             </div>
             <div className="flex flex-col leading-none">
               <span className="text-[15px] font-semibold text-gray-800 tracking-tight">Portal SI</span>
@@ -18,7 +22,7 @@ export default function HomePage() {
           </Link>
           <div className="flex items-center gap-4">
             <span className="hidden sm:inline-flex text-xs font-medium text-gray-400">
-              Video conferencing gratis
+              <a href="https://wa.me/6281350880733" target="_blank" className='text-dove-green'>Butuh bantuan?</a>
             </span>
           </div>
         </div>

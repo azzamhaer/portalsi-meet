@@ -50,8 +50,8 @@ export function HomeHero() {
         {/* LEFT — Copy */}
         <div>
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-[1.15] tracking-tight">
-            Video meeting<br />
-            <span className="hp-gradient-text">untuk semua orang</span>
+            Buat video meeting<br />
+            <span className="hp-gradient-text">tercepat dan tersimpel yang pernah ada.</span>
           </h1>
           <p className="mt-5 text-lg text-gray-500 leading-relaxed max-w-md">
             Buat atau gabung meeting dalam hitungan detik. Gratis, tanpa perlu install atau daftar akun.
@@ -71,13 +71,11 @@ export function HomeHero() {
             {/* Tab switcher */}
             <div className="flex border-b border-gray-100 mb-6">
               <button type="button" onClick={() => { setMode('create'); setError(null); }}
-                className={`flex-1 pb-3 text-sm font-semibold border-b-2 transition-colors ${
-                  mode === 'create' ? 'border-dove-green text-dove-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                className={`flex-1 pb-3 text-sm font-semibold border-b-2 transition-colors ${mode === 'create' ? 'border-dove-green text-dove-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
                 Buat Meeting
               </button>
               <button type="button" onClick={() => { setMode('join'); setError(null); }}
-                className={`flex-1 pb-3 text-sm font-semibold border-b-2 transition-colors ${
-                  mode === 'join' ? 'border-dove-orange text-dove-orange' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                className={`flex-1 pb-3 text-sm font-semibold border-b-2 transition-colors ${mode === 'join' ? 'border-dove-orange text-dove-orange' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
                 Gabung Meeting
               </button>
             </div>
@@ -89,7 +87,7 @@ export function HomeHero() {
                 <label className="flex items-center gap-3 cursor-pointer select-none py-2">
                   <input type="checkbox" checked={usePassword} onChange={e => setUsePassword(e.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-dove-green focus:ring-dove-green/30 cursor-pointer" />
-                  <span className="text-sm text-gray-600">Pasang password room</span>
+                  <span className="text-sm text-gray-600">Buat password room</span>
                 </label>
 
                 {usePassword && (
@@ -113,7 +111,7 @@ export function HomeHero() {
                     className="hp-input text-center uppercase tracking-[0.3em] font-semibold text-lg" />
                 </div>
 
-                <PwField label="Password (opsional)" value={password} onChange={setPassword}
+                <PwField label="Password (jika ada)" value={password} onChange={setPassword}
                   showPw={showPw} toggle={() => setShowPw(v => !v)} placeholder="Masukkan password" />
 
                 {error && <ErrBox text={error} />}
