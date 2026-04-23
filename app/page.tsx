@@ -3,39 +3,43 @@ import { HomeHero } from '@/components/HomeHero';
 
 export default function HomePage() {
   return (
-    <main className="homepage min-h-dvh flex flex-col relative overflow-hidden">
+    <main className="homepage min-h-dvh flex flex-col">
       {/* Navbar */}
-      <header className="relative z-20 mx-auto w-full max-w-5xl px-4 sm:px-6 pt-6">
-        <nav className="flex items-center justify-between px-5 py-3 rounded-2xl bg-white/[0.04] backdrop-blur-xl border border-white/[0.06]">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 transition-transform group-hover:scale-110 group-hover:rotate-3">
+      <header className="w-full border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-dove-green to-dove-orange transition-transform group-hover:scale-105">
               <span className="text-white font-black text-sm">:P</span>
             </div>
             <div className="flex flex-col leading-none">
-              <span className="text-base font-bold text-white/90 tracking-tight">Portal SI</span>
-              <span className="text-[10px] font-semibold text-emerald-400/80 tracking-[0.2em] uppercase">MEET</span>
+              <span className="text-[15px] font-semibold text-gray-800 tracking-tight">Portal SI</span>
+              <span className="text-[10px] font-medium text-dove-green tracking-[0.15em] uppercase">Meet</span>
             </div>
           </Link>
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Open Source
+          <div className="flex items-center gap-4">
+            <span className="hidden sm:inline-flex text-xs font-medium text-gray-400">
+              Video conferencing gratis
             </span>
           </div>
-        </nav>
+        </div>
       </header>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col justify-center">
         <HomeHero />
       </div>
 
       {/* Footer */}
-      <footer className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 pb-6">
-        <div className="text-center py-4 border-t border-white/[0.06]">
-          <p className="text-xs text-white/20 font-medium">
-            &copy; {new Date().getFullYear()} Portal SI Meet &middot; Built with LiveKit
-          </p>
+      <footer className="w-full border-t border-gray-100">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} Portal SI Meet</p>
+          <div className="flex items-center gap-4 text-xs text-gray-400">
+            <span>Gratis</span>
+            <span className="text-gray-200">·</span>
+            <span>Aman</span>
+            <span className="text-gray-200">·</span>
+            <span>Tanpa Install</span>
+          </div>
         </div>
       </footer>
     </main>

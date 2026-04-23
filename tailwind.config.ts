@@ -58,6 +58,9 @@ const config: Config = {
           'text-secondary': '#9aa0a6',
           'text-muted': '#5f6368',
         },
+        // Dove palette for homepage
+        'dove-orange': '#E8854A',
+        'dove-green': '#5B9E6F',
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],

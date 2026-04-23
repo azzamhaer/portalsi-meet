@@ -1,46 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
-import { Loader2, ArrowRight, Eye, EyeOff, Video, Users, Shield, Zap, Globe, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2, ArrowRight, Eye, EyeOff, Video, Shield, Zap, Lock } from 'lucide-react';
 import { normalizeRoomId, isValidRoomId } from '@/lib/room-id';
-
-// Floating orbs background
-function FloatingOrbs() {
-  return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
-      <div className="orb orb-1" />
-      <div className="orb orb-2" />
-      <div className="orb orb-3" />
-      <div className="orb orb-4" />
-    </div>
-  );
-}
-
-// Animated counter
-function AnimCounter({ end, duration = 2000, suffix = '' }: { end: number; duration?: number; suffix?: string }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) {
-        let start = 0;
-        const step = end / (duration / 16);
-        const timer = setInterval(() => {
-          start += step;
-          if (start >= end) { setCount(end); clearInterval(timer); }
-          else setCount(Math.floor(start));
-        }, 16);
-        observer.disconnect();
-      }
-    }, { threshold: 0.5 });
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [end, duration]);
-
-  return <span ref={ref} className="tabular-nums">{count.toLocaleString()}{suffix}</span>;
-}
 
 export function HomeHero() {
   const router = useRouter();
@@ -81,176 +44,132 @@ export function HomeHero() {
   }
 
   return (
-    <>
-      <FloatingOrbs />
+    <div className="w-full max-w-6xl mx-auto px-6 py-12 sm:py-20">
+      <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
 
-      {/* Hero Section */}
-      <section className="relative z-10 pt-16 pb-8 px-4 sm:px-6 text-center">
-        <div className="hero-badge">
-          <Sparkles className="h-3.5 w-3.5" />
-          <span>100% Gratis & Open Source</span>
-        </div>
+        {/* LEFT — Copy */}
+        <div>
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-[1.15] tracking-tight">
+            Video meeting<br />
+            <span className="hp-gradient-text">untuk semua orang</span>
+          </h1>
+          <p className="mt-5 text-lg text-gray-500 leading-relaxed max-w-md">
+            Buat atau gabung meeting dalam hitungan detik. Gratis, tanpa perlu install atau daftar akun.
+          </p>
 
-        <h1 className="hero-title mt-6">
-          <span className="hero-title-line">Video Call</span>
-          <span className="hero-title-accent">Tanpa Ribet</span>
-        </h1>
-
-        <p className="hero-subtitle mt-6 max-w-2xl mx-auto">
-          Buat ruang meeting dalam hitungan detik. Tanpa install, tanpa daftar,
-          langsung konek. <span className="text-white font-semibold">Sesimpel itu.</span>
-        </p>
-      </section>
-
-      {/* Form Card */}
-      <section className="relative z-10 max-w-lg mx-auto px-4 sm:px-6 pb-12">
-        <div className="form-card">
-          {/* Glow effect */}
-          <div className="form-card-glow" />
-
-          {/* Tab switcher */}
-          <div className="flex p-1 bg-white/[0.04] rounded-2xl mb-8">
-            <button type="button" onClick={() => setMode('create')}
-              className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${mode === 'create'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-[0_4px_20px_rgba(16,185,129,0.3)]'
-                : 'text-white/40 hover:text-white/70'}`}>
-              Buat Room
-            </button>
-            <button type="button" onClick={() => setMode('join')}
-              className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${mode === 'join'
-                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_4px_20px_rgba(245,158,11,0.3)]'
-                : 'text-white/40 hover:text-white/70'}`}>
-              Join Room
-            </button>
+          {/* Feature pills */}
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Pill icon={<Zap className="h-3.5 w-3.5" />} text="Instan" />
+            <Pill icon={<Shield className="h-3.5 w-3.5" />} text="Terenkripsi" />
+            <Pill icon={<Video className="h-3.5 w-3.5" />} text="HD Video" />
           </div>
+        </div>
 
-          {mode === 'create' ? (
-            <form onSubmit={handleCreate} className="space-y-5" autoComplete="off">
-              <InputField label="Nama Kamu" value={name} onChange={setName} placeholder="Mau dipanggil siapa?" maxLength={40} autoFocus />
+        {/* RIGHT — Form */}
+        <div>
+          <div className="hp-card">
+            {/* Tab switcher */}
+            <div className="flex border-b border-gray-100 mb-6">
+              <button type="button" onClick={() => { setMode('create'); setError(null); }}
+                className={`flex-1 pb-3 text-sm font-semibold border-b-2 transition-colors ${
+                  mode === 'create' ? 'border-dove-green text-dove-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                Buat Meeting
+              </button>
+              <button type="button" onClick={() => { setMode('join'); setError(null); }}
+                className={`flex-1 pb-3 text-sm font-semibold border-b-2 transition-colors ${
+                  mode === 'join' ? 'border-dove-orange text-dove-orange' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                Gabung Meeting
+              </button>
+            </div>
 
-              <div className="flex items-center gap-4 py-3 px-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none flex-1">
+            {mode === 'create' ? (
+              <form onSubmit={handleCreate} className="space-y-4" autoComplete="off">
+                <Field label="Nama Anda" value={name} onChange={setName} placeholder="Masukkan nama" maxLength={40} autoFocus />
+
+                <label className="flex items-center gap-3 cursor-pointer select-none py-2">
                   <input type="checkbox" checked={usePassword} onChange={e => setUsePassword(e.target.checked)}
-                    className="h-5 w-5 rounded-md border-2 border-white/20 bg-transparent focus:ring-0 accent-emerald-500 cursor-pointer" />
-                  <span className="text-sm font-medium text-white/60">Pasang Password</span>
+                    className="h-4 w-4 rounded border-gray-300 text-dove-green focus:ring-dove-green/30 cursor-pointer" />
+                  <span className="text-sm text-gray-600">Pasang password room</span>
                 </label>
-                <Shield className="h-4 w-4 text-white/15" />
-              </div>
 
-              {usePassword && (
-                <div className="animate-slideDown">
-                  <PasswordField value={password} onChange={setPassword} showPw={showPw} togglePw={() => setShowPw(v => !v)} placeholder="Buat password..." />
+                {usePassword && (
+                  <PwField value={password} onChange={setPassword} showPw={showPw} toggle={() => setShowPw(v => !v)} placeholder="Buat password..." />
+                )}
+
+                {error && <ErrBox text={error} />}
+
+                <button type="submit" disabled={loading} className="hp-btn hp-btn-green">
+                  {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Membuat...</> : <>Mulai Meeting Baru <ArrowRight className="h-4 w-4" /></>}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleJoin} className="space-y-4" autoComplete="off">
+                <Field label="Nama Anda" value={name} onChange={setName} placeholder="Masukkan nama" maxLength={40} autoFocus />
+
+                <div>
+                  <label className="hp-label">Kode Meeting</label>
+                  <input type="text" value={roomId} onChange={e => setRoomId(e.target.value.toUpperCase())}
+                    placeholder="Contoh: ABCDEF" maxLength={12} autoComplete="off"
+                    className="hp-input text-center uppercase tracking-[0.3em] font-semibold text-lg" />
                 </div>
-              )}
 
-              {error && <ErrorMsg text={error} />}
+                <PwField label="Password (opsional)" value={password} onChange={setPassword}
+                  showPw={showPw} toggle={() => setShowPw(v => !v)} placeholder="Masukkan password" />
 
-              <button type="submit" disabled={loading}
-                className="form-btn from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-[0_0_32px_rgba(16,185,129,0.25)] hover:shadow-[0_0_48px_rgba(16,185,129,0.4)]">
-                {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Membuat...</> : <>Mulai Meeting <ArrowRight className="h-5 w-5" /></>}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleJoin} className="space-y-5" autoComplete="off">
-              <InputField label="Nama Kamu" value={name} onChange={setName} placeholder="Mau dipanggil siapa?" maxLength={40} autoFocus />
+                {error && <ErrBox text={error} />}
 
-              <div>
-                <label className="form-label">Room ID</label>
-                <input type="text" value={roomId} onChange={e => setRoomId(e.target.value.toUpperCase())}
-                  placeholder="ABCDEF" maxLength={12} autoComplete="off"
-                  className="form-input text-center uppercase tracking-[0.35em] font-bold text-xl !py-4" />
-              </div>
-
-              <PasswordField label="Password (jika ada)" value={password} onChange={setPassword} showPw={showPw} togglePw={() => setShowPw(v => !v)} placeholder="Ketik password..." />
-
-              {error && <ErrorMsg text={error} />}
-
-              <button type="submit"
-                className="form-btn from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 shadow-[0_0_32px_rgba(245,158,11,0.25)] hover:shadow-[0_0_48px_rgba(245,158,11,0.4)]">
-                <ArrowRight className="h-5 w-5" /> Gabung Sekarang
-              </button>
-            </form>
-          )}
+                <button type="submit" className="hp-btn hp-btn-orange">
+                  <ArrowRight className="h-4 w-4" /> Gabung Sekarang
+                </button>
+              </form>
+            )}
+          </div>
         </div>
-      </section>
-
-      {/* Features */}
-      <section className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pb-16">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <FeatureCard icon={<Zap className="h-5 w-5" />} title="Instan" desc="2 detik buat room. Langsung pakai." color="emerald" />
-          <FeatureCard icon={<Shield className="h-5 w-5" />} title="Aman" desc="Enkripsi E2E. Password protected." color="blue" />
-          <FeatureCard icon={<Globe className="h-5 w-5" />} title="Tanpa Install" desc="Buka browser, langsung jalan." color="purple" />
-        </div>
-
-        {/* Stats */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 sm:gap-10">
-          <StatItem value={<AnimCounter end={100} suffix="%" />} label="Gratis" />
-          <div className="h-8 w-px bg-white/10 hidden sm:block" />
-          <StatItem value={<AnimCounter end={50} suffix="ms" />} label="Latency" />
-          <div className="h-8 w-px bg-white/10 hidden sm:block" />
-          <StatItem value={<AnimCounter end={256} />} label="Bit Enkripsi" />
-        </div>
-      </section>
-    </>
-  );
-}
-
-// Reusable sub-components
-function InputField({ label, value, onChange, placeholder, maxLength, autoFocus }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder: string; maxLength?: number; autoFocus?: boolean;
-}) {
-  return (
-    <div>
-      <label className="form-label">{label}</label>
-      <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        maxLength={maxLength} autoFocus={autoFocus} autoComplete="off" className="form-input" />
+      </div>
     </div>
   );
 }
 
-function PasswordField({ label, value, onChange, showPw, togglePw, placeholder }: {
-  label?: string; value: string; onChange: (v: string) => void; showPw: boolean; togglePw: () => void; placeholder: string;
+function Field({ label, value, onChange, placeholder, maxLength, autoFocus }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder: string; maxLength?: number; autoFocus?: boolean;
 }) {
   return (
     <div>
-      {label && <label className="form-label">{label}</label>}
+      <label className="hp-label">{label}</label>
+      <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        maxLength={maxLength} autoFocus={autoFocus} autoComplete="off" className="hp-input" />
+    </div>
+  );
+}
+
+function PwField({ label, value, onChange, showPw, toggle, placeholder }: {
+  label?: string; value: string; onChange: (v: string) => void; showPw: boolean; toggle: () => void; placeholder: string;
+}) {
+  return (
+    <div>
+      {label && <label className="hp-label">{label}</label>}
       <div className="relative">
+        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
         <input type={showPw ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)}
           placeholder={placeholder} maxLength={64} autoComplete="off" data-1p-ignore
-          className="form-input !pr-12" />
-        <button type="button" onClick={togglePw}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-white/30 hover:text-white/60 transition-colors">
-          {showPw ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          className="hp-input !pl-10 !pr-10" />
+        <button type="button" onClick={toggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+          {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
     </div>
   );
 }
 
-function ErrorMsg({ text }: { text: string }) {
-  return <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 font-medium animate-shake">{text}</div>;
+function ErrBox({ text }: { text: string }) {
+  return <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">{text}</p>;
 }
 
-function FeatureCard({ icon, title, desc, color }: { icon: React.ReactNode; title: string; desc: string; color: string }) {
-  const colors: Record<string, string> = {
-    emerald: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/10 text-emerald-400',
-    blue: 'from-blue-500/20 to-blue-500/5 border-blue-500/10 text-blue-400',
-    purple: 'from-purple-500/20 to-purple-500/5 border-purple-500/10 text-purple-400',
-  };
+function Pill({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className={`feature-card bg-gradient-to-br ${colors[color]} border`}>
-      <div className="mb-3">{icon}</div>
-      <h3 className="text-base font-bold text-white/90">{title}</h3>
-      <p className="text-sm text-white/40 mt-1">{desc}</p>
-    </div>
-  );
-}
-
-function StatItem({ value, label }: { value: React.ReactNode; label: string }) {
-  return (
-    <div className="text-center">
-      <p className="text-2xl sm:text-3xl font-black text-white/90">{value}</p>
-      <p className="text-xs text-white/30 font-medium uppercase tracking-wider mt-0.5">{label}</p>
-    </div>
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 border border-gray-100 px-3.5 py-1.5 text-xs font-medium text-gray-500">
+      {icon}{text}
+    </span>
   );
 }
