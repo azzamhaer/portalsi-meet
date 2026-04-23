@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle } from 'lucide-react';
+import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users } from 'lucide-react';
+import type { RoomPerms } from '../MeetingRoom';
 
-export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight }: {
-  onClose: () => void;
-  enhanceLight: boolean;
-  onToggleEnhanceLight: () => void;
+export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll }: {
+  onClose: () => void; enhanceLight: boolean; onToggleEnhanceLight: () => void;
+  isHost?: boolean; perms?: RoomPerms; onPermsChange?: (p: RoomPerms) => void;
+  onMuteAll?: () => void; onMuteVideoAll?: () => void;
 }) {
   const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] });
   const [noiseSuppression, setNoiseSuppression] = useState(true);
@@ -20,12 +21,44 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight }: {
   return (
     <aside className="flex flex-col h-full w-full md:w-[340px] glass-panel md:rounded-2xl overflow-hidden animate-slide-in-right">
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-        <h2 className="text-sm font-semibold text-white/90 flex items-center gap-2">
-          <Monitor className="h-4 w-4 text-[#8ab4f8]" /> Pengaturan
-        </h2>
+        <h2 className="text-sm font-semibold text-white/90 flex items-center gap-2"><Monitor className="h-4 w-4 text-[#8ab4f8]" /> Pengaturan</h2>
         <button onClick={onClose} className="glass-button rounded-full p-1.5"><X className="h-4 w-4 text-white/70" /></button>
       </div>
       <div className="flex-1 overflow-y-auto meet-scrollbar p-5 space-y-6">
+
+        {/* HOST CONTROLS */}
+        {isHost && perms && onPermsChange && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-yellow-400" />
+              <h3 className="text-xs font-semibold text-yellow-400 uppercase tracking-wider">Kontrol Host</h3>
+            </div>
+
+            <Toggle icon={<MessageSquare className="h-4 w-4 text-[#8ab4f8]" />} title="Izinkan Chat" desc="Peserta bisa mengirim pesan" active={perms.allowChat} onToggle={() => onPermsChange({ ...perms, allowChat: !perms.allowChat })} />
+            <Toggle icon={<ScreenShare className="h-4 w-4 text-green-400" />} title="Izinkan Screen Share" desc="Peserta bisa berbagi layar" active={perms.allowScreenShare} onToggle={() => onPermsChange({ ...perms, allowScreenShare: !perms.allowScreenShare })} />
+            <Toggle icon={<Smile className="h-4 w-4 text-yellow-400" />} title="Izinkan Reaksi" desc="Peserta bisa kirim reaksi emoji" active={perms.allowReactions} onToggle={() => onPermsChange({ ...perms, allowReactions: !perms.allowReactions })} />
+            <Toggle icon={<DoorOpen className="h-4 w-4 text-purple-400" />} title="Izinkan Bergabung" desc="User baru bisa masuk langsung" active={perms.allowJoin} onToggle={() => onPermsChange({ ...perms, allowJoin: !perms.allowJoin })} />
+
+            <hr className="border-white/[0.06]" />
+
+            <Toggle icon={<Users className="h-4 w-4 text-orange-400" />} title="Mode Lobi" desc="User baru harus menunggu persetujuan" active={perms.lobbyMode} onToggle={() => onPermsChange({ ...perms, lobbyMode: !perms.lobbyMode })} />
+
+            <hr className="border-white/[0.06]" />
+
+            <div className="flex gap-2">
+              <button onClick={onMuteAll} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/10 transition-all">
+                <VolumeX className="h-3.5 w-3.5" /> Bisukan Semua
+              </button>
+              <button onClick={onMuteVideoAll} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/10 transition-all">
+                <VideoOff className="h-3.5 w-3.5" /> Matikan Semua Video
+              </button>
+            </div>
+
+            <hr className="border-white/[0.06]" />
+          </div>
+        )}
+
+        {/* DEVICE SETTINGS */}
         <DeviceSelect icon={<Camera className="h-3.5 w-3.5" />} label="Kamera" devices={devices.video} fallback="Default Camera" />
         <DeviceSelect icon={<Mic className="h-3.5 w-3.5" />} label="Mikrofon" devices={devices.audio} fallback="Default Microphone" />
         <DeviceSelect icon={<Volume2 className="h-3.5 w-3.5" />} label="Speaker" devices={[]} fallback="Default Speaker" />

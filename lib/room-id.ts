@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto';
 
-// base32 alphabet without ambiguous chars (no 0/O/1/I/L)
-const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+// Alphabet only — no numbers, no ambiguous chars (no O/I/L)
+const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ';
 
 export function generateRoomId(length = 6): string {
   const bytes = randomBytes(length);
@@ -15,11 +15,10 @@ export function generateRoomId(length = 6): string {
 export function normalizeRoomId(input: string): string {
   return input
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-    .replace(/[O]/g, '0')
+    .replace(/[^A-Z]/g, '')
     .slice(0, 6);
 }
 
 export function isValidRoomId(id: string): boolean {
-  return /^[A-Z0-9]{4,12}$/.test(id);
+  return /^[A-Z]{4,12}$/.test(id);
 }

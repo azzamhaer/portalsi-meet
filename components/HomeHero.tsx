@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Loader2, Video, ArrowRight, Smile } from 'lucide-react';
+import { Loader2, Video, ArrowRight, Smile, Eye, EyeOff } from 'lucide-react';
 import { normalizeRoomId, isValidRoomId } from '@/lib/room-id';
 
 export function HomeHero() {
@@ -14,6 +14,7 @@ export function HomeHero() {
   const [usePassword, setUsePassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -147,15 +148,20 @@ export function HomeHero() {
                 </label>
               </div>
               {usePassword && (
-                <div className="animate-fade-in">
+                <div className="animate-fade-in relative">
                   <input
-                    type="password"
+                    type={showPw ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Buat password..."
                     maxLength={64}
-                    className="input-field !border-secondary"
+                    autoComplete="off"
+                    data-1p-ignore
+                    className="input-field !border-secondary !pr-12"
                   />
+                  <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink-400 hover:text-black transition-colors">
+                    {showPw ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               )}
               {error && (
@@ -204,14 +210,21 @@ export function HomeHero() {
                 <label className="mb-1.5 block text-xs font-black text-black tracking-widest uppercase">
                   Password <span className="font-medium text-ink-400">(jika ada)</span>
                 </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Ketik rahasia..."
-                  maxLength={64}
-                  className="input-field"
-                />
+                <div className="relative">
+                  <input
+                    type={showPw ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Ketik rahasia..."
+                    maxLength={64}
+                    autoComplete="off"
+                    data-1p-ignore
+                    className="input-field !pr-12"
+                  />
+                  <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink-400 hover:text-black transition-colors">
+                    {showPw ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
               {error && (
                 <div className="rounded-xl border-2 border-black bg-red-400 p-3 text-sm font-bold text-black shadow-brutal">

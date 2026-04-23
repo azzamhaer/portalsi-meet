@@ -157,6 +157,14 @@
 }
 .theme-meet .lk-grid-layout { gap: 8px !important; padding: 8px !important; }
 
+/* Portrait video support on mobile */
+@media (max-width: 768px) {
+  .theme-meet .lk-participant-tile video {
+    object-fit: contain !important;
+    background: #0a0a0f;
+  }
+}
+
 /* === VIDEO FILTERS === */
 .video-enhance-light .lk-participant-tile video { filter: brightness(1.2) contrast(1.08) saturate(1.1); }
 

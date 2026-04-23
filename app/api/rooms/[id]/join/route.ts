@@ -82,6 +82,18 @@ export async function POST(
     );
   }
 
+  // Lobby mode: put user in waiting room
+  if (room.permissions?.lobbyMode) {
+    const { addWaiting } = await import('@/lib/rooms');
+    const waitingId = `w-${randomUUID()}`;
+    await addWaiting(id, { waitingId, name, ts: Date.now() });
+    return NextResponse.json({
+      status: 'waiting',
+      waitingId,
+      roomId: id,
+    }, { status: 202 });
+  }
+
   const identity = `user-${randomUUID()}`;
 
   const token = await createAccessToken({
@@ -96,6 +108,5 @@ export async function POST(
     token,
     wsUrl: LIVEKIT_WS_URL,
     isHost: false,
-    lobby: room.lobby,
   });
 }

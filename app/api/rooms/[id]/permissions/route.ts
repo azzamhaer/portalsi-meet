@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getRoom } from '@/lib/rooms';
+import { getRoom, saveRoom } from '@/lib/rooms';
 import { normalizeRoomId } from '@/lib/room-id';
-import redis from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -20,12 +19,15 @@ export async function PATCH(
   const { hostIdentity, permissions } = body;
   if (hostIdentity !== room.hostIdentity) return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
 
+  const p = room.permissions || {};
   room.permissions = {
-    allowChat: permissions?.allowChat ?? room.permissions?.allowChat ?? true,
-    allowScreenShare: permissions?.allowScreenShare ?? room.permissions?.allowScreenShare ?? true,
-    allowJoin: permissions?.allowJoin ?? room.permissions?.allowJoin ?? true,
+    allowChat: permissions?.allowChat ?? p.allowChat ?? true,
+    allowScreenShare: permissions?.allowScreenShare ?? p.allowScreenShare ?? true,
+    allowJoin: permissions?.allowJoin ?? p.allowJoin ?? true,
+    allowReactions: permissions?.allowReactions ?? p.allowReactions ?? true,
+    lobbyMode: permissions?.lobbyMode ?? p.lobbyMode ?? false,
   };
 
-  await redis.setex(`room:${id}`, 24 * 60 * 60, JSON.stringify(room));
+  await saveRoom(room);
   return NextResponse.json({ ok: true, permissions: room.permissions });
 }
