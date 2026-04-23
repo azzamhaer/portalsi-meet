@@ -108,8 +108,8 @@ export function HomeHero() {
 
                 <div>
                   <label className="hp-label">Kode Meeting</label>
-                  <input type="text" value={roomId} onChange={e => setRoomId(e.target.value.toUpperCase())}
-                    placeholder="Contoh: ABCDEF" maxLength={12} autoComplete="off"
+                  <input type="text" value={roomId} onChange={e => setRoomId(e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase())}
+                    placeholder="Contoh: ABCDEF" maxLength={6} autoComplete="off"
                     className="hp-input text-center uppercase tracking-[0.3em] font-semibold text-lg" />
                 </div>
 

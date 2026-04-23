@@ -20,5 +20,5 @@ export function normalizeRoomId(input: string): string {
 }
 
 export function isValidRoomId(id: string): boolean {
-  return /^[A-Z]{4,12}$/.test(id);
+  return /^[A-Z]{6}$/.test(id);
 }
