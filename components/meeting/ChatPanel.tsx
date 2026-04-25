@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, MoreVertical, Pencil, Trash2, Reply, Paperclip, Lock, FileText, Download, Loader2, HelpCircle, BarChart2, ThumbsUp, PlusCircle, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, X, Send, MoreVertical, Pencil, Trash2, Reply, Paperclip, Lock, FileText, Download, Loader2, BarChart2, PlusCircle } from 'lucide-react';
 import { useParticipants } from '@livekit/components-react';
-import type { ChatMsg, Poll, QnA } from '../MeetingRoom';
+import type { ChatMsg, Poll } from '../MeetingRoom';
 
 export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, onDelete, onClose, disabled, polls, isHost, pub, allowPolls, onPollCreate }: {
   messages: ChatMsg[]; localIdentity: string; localName: string;
@@ -165,38 +165,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
         </>
       )}
 
-      {activeTab === 'qna' && (
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="flex-1 overflow-y-auto meet-scrollbar p-4 space-y-3">
-            {qnas.length === 0 && <div className="flex flex-col items-center justify-center h-full text-white/20 text-sm"><HelpCircle className="h-8 w-8 mb-2 opacity-50" /><p>Belum ada pertanyaan</p></div>}
-            {[...qnas].sort((a, b) => b.upvotes - a.upvotes).map(q => {
-              const hasUpvoted = q.upvoters.includes(localIdentity);
-              return (
-                <div key={q.id} className={`p-3 rounded-xl border ${q.answered ? 'bg-green-500/10 border-green-500/20' : 'bg-white/[0.04] border-white/10'}`}>
-                  <div className="flex justify-between items-start gap-2">
-                    <div>
-                      <p className="text-[11px] text-[#8ab4f8] font-medium">{q.askerName}</p>
-                      <p className="text-sm text-white/90 mt-1">{q.question}</p>
-                      {q.answered && <p className="text-[10px] text-green-400 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Terjawab</p>}
-                    </div>
-                    <button onClick={() => pub({ type: 'qna_upvote', qnaId: q.id, identity: localIdentity, upvote: !hasUpvoted })} className={`flex flex-col items-center p-1.5 rounded-lg border transition-all ${hasUpvoted ? 'bg-[#8ab4f8]/20 border-[#8ab4f8]/50 text-[#8ab4f8]' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}>
-                      <ThumbsUp className={`w-4 h-4 ${hasUpvoted ? 'fill-current' : ''}`} />
-                      <span className="text-xs font-bold mt-1">{q.upvotes}</span>
-                    </button>
-                  </div>
-                  {isHost && !q.answered && (
-                    <button onClick={() => pub({ type: 'qna_answer', qnaId: q.id, answered: true })} className="mt-3 text-[11px] bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-white/70">Tandai Terjawab</button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <div className="p-3 border-t border-white/[0.06] bg-black/20 flex gap-2">
-            <input value={qnaInput} onChange={e => setQnaInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAskQna()} placeholder="Tanya sesuatu..." className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#8ab4f8]/30" />
-            <button onClick={handleAskQna} disabled={!qnaInput.trim()} className="p-2 bg-[#8ab4f8] text-black rounded-xl disabled:opacity-50"><Send className="w-4 h-4" /></button>
-          </div>
-        </div>
-      )}
+
 
       {activeTab === 'polls' && (
         <div className="flex flex-col h-full overflow-hidden">

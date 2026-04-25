@@ -45,6 +45,7 @@ export function InfoPanel({ roomId, isHost, password, startTime, onClose, allowR
   const [copied, setCopied] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState(localParticipant.name || '');
   const [localPw, setLocalPw] = useState(password);
   const [editingPw, setEditingPw] = useState(false);
