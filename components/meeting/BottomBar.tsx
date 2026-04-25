@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useParticipants, useLocalParticipant } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 import {
   PhoneOff, Info, Users, MessageSquare, Settings, Hand, Smile,
   Copy, MoreVertical, LayoutGrid, ScreenShare, ScreenShareOff,
-  Mic, MicOff, Video, VideoOff,
+  Mic, MicOff, Video, VideoOff, RefreshCcw, ZoomIn, Disc
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 import type { PanelType } from './types';
@@ -18,10 +19,12 @@ export function BottomBar({
   roomId, activePanel, onPanelChange, onLeave,
   onReaction, handRaised, onToggleHand,
   unreadCount, permissions, isHost,
+  isRecording, onRecordToggle
 }: {
   roomId: string; activePanel: PanelType; onPanelChange: (p: PanelType) => void; onLeave: () => void;
   onReaction: (emoji: string) => void; handRaised: boolean; onToggleHand: () => void;
   unreadCount: number; permissions: RoomPerms; isHost: boolean;
+  isRecording?: boolean; onRecordToggle?: () => void;
 }) {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [copied, setCopied] = useState(false);
@@ -60,6 +63,39 @@ export function BottomBar({
   const isMicOn = localParticipant.isMicrophoneEnabled;
   const isCamOn = localParticipant.isCameraEnabled;
 
+  const flipCamera = async () => {
+    const track = localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+    if (!track) return;
+    try {
+      // Toggle facingMode (user/environment) if we can access the track options
+      // This is a generic approach; modern browsers support facingMode in applyConstraints
+      const currentSettings = track.mediaStreamTrack.getSettings();
+      const newMode = currentSettings.facingMode === 'user' ? 'environment' : 'user';
+      await track.restartTrack({ facingMode: newMode });
+    } catch (e) {
+      console.error('Failed to flip camera', e);
+    }
+  };
+
+  const zoomCamera = async () => {
+    const track = localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+    if (!track) return;
+    try {
+      const caps = track.mediaStreamTrack.getCapabilities() as any;
+      const settings = track.mediaStreamTrack.getSettings() as any;
+      if (caps.zoom) {
+        // Toggle zoom between 1 and 2
+        const currentZoom = settings.zoom || 1;
+        const newZoom = currentZoom > 1.5 ? 1 : 2;
+        await track.mediaStreamTrack.applyConstraints({ advanced: [{ zoom: newZoom }] } as any);
+      } else {
+        alert("Zoom tidak didukung oleh perangkat ini.");
+      }
+    } catch (e) {
+      console.error('Failed to zoom camera', e);
+    }
+  };
+
   return (
     <>
       {/* Reaction picker */}
@@ -97,6 +133,14 @@ export function BottomBar({
             onClick={() => { toggle('settings'); setShowMobileMore(false); }} />
           <MItem icon={<LayoutGrid className="h-4 w-4" />} label="Tampilan" active={activePanel === 'view'}
             onClick={() => { toggle('view'); setShowMobileMore(false); }} />
+          <hr className="border-white/[0.06] my-1 mx-3" />
+          <MItem icon={<RefreshCcw className="h-4 w-4" />} label="Putar Kamera" onClick={() => { flipCamera(); setShowMobileMore(false); }} />
+          <MItem icon={<ZoomIn className="h-4 w-4" />} label="Zoom Kamera" onClick={() => { zoomCamera(); setShowMobileMore(false); }} />
+          {onRecordToggle && (
+             <MItem icon={<Disc className={`h-4 w-4 ${isRecording ? 'text-red-500 animate-pulse' : ''}`} />} 
+               label={isRecording ? "Hentikan Rekaman" : "Mulai Rekaman"} 
+               onClick={() => { onRecordToggle(); setShowMobileMore(false); }} />
+          )}
         </div>
       )}
 
@@ -163,6 +207,18 @@ export function BottomBar({
               </button>
             </Tooltip>
           </div>
+
+          {/* Record desktop */}
+          {onRecordToggle && (
+            <div className="hidden md:block">
+              <Tooltip text={isRecording ? 'Hentikan Rekaman' : 'Mulai Rekaman'}>
+                <button onClick={onRecordToggle}
+                  className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${isRecording ? '!bg-red-500/20 !border-red-500/30 !text-red-400 animate-pulse' : ''}`}>
+                  <Disc className="h-5 w-5" />
+                </button>
+              </Tooltip>
+            </div>
+          )}
 
           {/* Leave */}
           <Tooltip text="Tinggalkan">

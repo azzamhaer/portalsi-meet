@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useTracks, useLocalParticipant, GridLayout, ParticipantTile } from '@livekit/components-react';
+import { useTracks, useLocalParticipant, GridLayout, ParticipantTile, useSpeakingParticipants } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import Draggable from 'react-draggable';
 import { Maximize2 } from 'lucide-react';
@@ -12,6 +12,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
   focusedIdentity: string | null; onFocusParticipant: (id: string | null) => void;
 }) {
   const { localParticipant } = useLocalParticipant();
+  const activeSpeakers = useSpeakingParticipants();
 
   const tracks = useTracks(
     [{ source: Track.Source.Camera, withPlaceholder: true }, { source: Track.Source.ScreenShare, withPlaceholder: false }],
@@ -51,8 +52,10 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
 
   // === SPEAKER / STANDARD — determine main track ===
   // Priority: screen share > clicked participant > first remote
+  const activeSpeakerId = activeSpeakers.length > 0 ? activeSpeakers[0].identity : null;
   const mainTrack = screenShareTrack
     || (focusedIdentity ? remoteTracks.find(t => t.participant.identity === focusedIdentity) : null)
+    || (activeSpeakerId ? remoteTracks.find(t => t.participant.identity === activeSpeakerId) : null)
     || (remoteTracks.length > 0 ? remoteTracks[0] : null);
 
   const stripTracks = remoteTracks.filter(t => t !== mainTrack).slice(0, 11);
@@ -99,7 +102,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
         <div className="flex md:flex-col gap-2 md:w-48 lg:w-56 overflow-x-auto md:overflow-y-auto md:overflow-x-hidden meet-scrollbar shrink-0">
           {stripTracks.map(tr => (
             <div key={`${tr.participant.identity}-${tr.source}`}
-              className="pip-container shrink-0 w-36 h-24 md:w-full md:h-32 cursor-pointer hover:ring-2 hover:ring-[#8ab4f8]/40 rounded-2xl transition-all"
+              className="pip-container shrink-0 w-36 h-24 md:w-full md:h-32 cursor-pointer hover:ring-2 hover:ring-[#8ab4f8]/40 rounded-2xl transition-all overflow-hidden relative"
               onClick={() => onFocusParticipant(tr.participant.identity === focusedIdentity ? null : tr.participant.identity)}>
               <ParticipantTile trackRef={tr} className="h-full w-full" />
             </div>
@@ -120,10 +123,10 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
           <Maximize2 className="h-5 w-5 text-white drop-shadow" />
         </div>
       </div>
-      <div className="md:hidden block absolute z-40" style={{ bottom: 8, right: 8 }}>
-        <Draggable bounds="parent" defaultPosition={{ x: 0, y: 0 }}>
-          <div className="pip-container w-28 h-40 cursor-move touch-none" onClick={onClick}>
-            <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full" />
+      <div className="md:hidden fixed inset-0 z-40 pointer-events-none pb-[80px]">
+        <Draggable bounds="parent">
+          <div className="absolute right-2 bottom-2 pip-container w-28 h-40 cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick}>
+            <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full [&>video]:object-cover" />
           </div>
         </Draggable>
       </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants } from '@livekit/components-react';
+import { BackgroundBlur } from '@livekit/track-processors';
 import { VideoPresets, DisconnectReason, RoomOptions, Track, RoomEvent } from 'livekit-client';
 import type { MeetingProps, PanelType } from './meeting/types';
 import type { ViewMode } from './meeting/BottomBar';
@@ -16,6 +17,9 @@ import { ViewPanel } from './meeting/ViewPanel';
 export interface ChatMsg {
   id: string; text: string; senderName: string; senderIdentity: string; ts: number;
   edited?: boolean; editedAt?: number; deleted?: boolean; deletedAt?: number;
+  replyToId?: string; replyToText?: string; replyToSender?: string;
+  fileUrl?: string; fileName?: string;
+  isPrivate?: boolean; targetIdentity?: string;
 }
 export interface FloatingNotif { id: number; emoji?: string; text: string; name: string; }
 export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; }
@@ -58,6 +62,9 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>([]);
   const [raisedHands, setRaisedHands] = useState<Map<string, string>>(new Map());
   const [floats, setFloats] = useState<FloatingNotif[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [virtualBg, setVirtualBg] = useState<string>('none');
+  const [bgProcessor, setBgProcessor] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [focusedIdentity, setFocusedIdentity] = useState<string | null>(null);
   const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true });
@@ -71,9 +78,28 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const dec = useRef(new TextDecoder());
   const joinBatch = useRef<string[]>([]);
   const joinTimer = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
 
   useEffect(() => { chatRef.current = chatMsgs; }, [chatMsgs]);
   useEffect(() => { activePanelRef.current = activePanel; if (activePanel === 'chat') setUnreadCount(0); }, [activePanel]);
+
+  useEffect(() => {
+    const applyBg = async () => {
+      const track = localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+      if (!track) return;
+      try {
+        if (virtualBg === 'blur') {
+          let proc = bgProcessor;
+          if (!proc) { proc = BackgroundBlur(10); setBgProcessor(proc); }
+          await track.setProcessor(proc);
+        } else {
+          await track.setProcessor(undefined as any);
+        }
+      } catch (e) { console.error("BG Error:", e); }
+    };
+    applyBg();
+  }, [virtualBg, localParticipant, bgProcessor]);
 
   // === UNIFIED DATA HANDLER ===
   useEffect(() => {
@@ -116,8 +142,8 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   }, [room, isHost, localParticipant]);
 
   const addFloat = (emoji: string, name: string) => { const id = Date.now() + Math.random(); setFloats(p => [...p, { id, emoji, text: emoji, name }]); setTimeout(() => setFloats(p => p.filter(f => f.id !== id)), 3500); };
-  const pub = useCallback((d: any) => room.localParticipant.publishData(enc.current.encode(JSON.stringify(d)), { reliable: true }), [room]);
-  const sendChat = useCallback((text: string) => { const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); const msg: ChatMsg = { id, text, senderName: localParticipant.name || 'Anonim', senderIdentity: localParticipant.identity, ts: Date.now() }; setChatMsgs(p => [...p, msg]); pub({ type: 'chat', action: 'send', ...msg }); }, [pub, localParticipant]);
+  const pub = useCallback((d: any, dests?: string[]) => room.localParticipant.publishData(enc.current.encode(JSON.stringify(d)), { reliable: true, destinationIdentities: dests }), [room]);
+  const sendChat = useCallback((text: string, opts?: Partial<ChatMsg>) => { const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); const msg: ChatMsg = { id, text, senderName: localParticipant.name || 'Anonim', senderIdentity: localParticipant.identity, ts: Date.now(), ...opts }; setChatMsgs(p => [...p, msg]); pub({ type: 'chat', action: 'send', ...msg }, msg.isPrivate && msg.targetIdentity ? [msg.targetIdentity] : undefined); }, [pub, localParticipant]);
   const editChat = useCallback((id: string, text: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, text, edited: true, editedAt: ts } : m)); pub({ type: 'chat', action: 'edit', id, text, ts }); }, [pub]);
   const deleteChat = useCallback((id: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, deleted: true, deletedAt: ts } : m)); pub({ type: 'chat', action: 'delete', id, ts }); }, [pub]);
   const sendReaction = useCallback((emoji: string) => { if (!isHost && !perms.allowReactions) return; const name = localParticipant.name || 'Anonim'; addFloat(emoji, name); pub({ type: 'reaction', emoji, name }); }, [pub, localParticipant, perms, isHost]);
@@ -137,6 +163,52 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const muteAll = useCallback(() => { pub({ type: 'host_action', action: 'mute_all' }); }, [pub]);
   const muteVideoAll = useCallback(() => { pub({ type: 'host_action', action: 'mute_video_all' }); }, [pub]);
   const stopShare = useCallback((identity: string) => { pub({ type: 'host_action', action: 'stop_share', target: identity }); }, [pub]);
+
+  // === RECORDING ===
+  const toggleRecord = async () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      return;
+    }
+    
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'browser' }, audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mediaRecorder.onstop = async () => {
+        setIsRecording(false);
+        stream.getTracks().forEach(t => t.stop());
+        
+        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        const formData = new FormData();
+        formData.append('file', blob, `Rekaman-${new Date().toISOString().replace(/:/g, '-')}.webm`);
+        
+        addFloat('⏳', 'Mengunggah rekaman...');
+        try {
+          const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.success) {
+            sendChat('Rekaman meeting telah tersedia.', { fileUrl: data.url, fileName: data.name });
+          } else { alert('Gagal mengunggah rekaman: ' + data.error); }
+        } catch (e) { console.error(e); alert('Terjadi kesalahan saat mengunggah rekaman.'); }
+      };
+      
+      mediaRecorder.start(1000);
+      setIsRecording(true);
+      
+      stream.getVideoTracks()[0].onended = () => {
+        if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+      };
+    } catch (err) {
+      console.error('Recording error:', err);
+      alert('Gagal memulai rekaman. Pastikan Anda memberikan izin akses layar & audio sistem.');
+    }
+  };
 
   // Escape
   useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setActivePanel(null); setShowLeaveConfirm(false); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, []);
@@ -212,7 +284,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
             <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
               {activePanel === 'participants' && <ParticipantsPanel isHost={isHost} roomId={roomId} onClose={() => setActivePanel(null)} onStopShare={stopShare} />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
-              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} />}
+              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
             </div>
           </>
@@ -223,7 +295,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
       <BottomBar roomId={roomId} activePanel={activePanel} onPanelChange={setActivePanel}
         onLeave={() => setShowLeaveConfirm(true)} onReaction={sendReaction}
         handRaised={handRaised} onToggleHand={toggleHand} unreadCount={unreadCount}
-        permissions={perms} isHost={isHost} />
+        permissions={perms} isHost={isHost} isRecording={isRecording} onRecordToggle={toggleRecord} />
 
       {/* Leave Confirmation */}
       {showLeaveConfirm && (
