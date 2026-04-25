@@ -59,25 +59,40 @@ export async function POST(
     return NextResponse.json({ error: 'Nama wajib diisi.' }, { status: 400 });
   }
 
+  let pwRemaining = -1;
+
   // Rate limit password attempts per room per IP
   if (room.passwordHash) {
+    if (!password) {
+      return NextResponse.json(
+        { error: 'Ruangan ini membutuhkan password.', requiresPassword: true },
+        { status: 401 }
+      );
+    }
+
     const pwRl = await rateLimit({
       key: `pw:${id}:${ip}`,
-      max: 5,
+      max: 10,
       windowSeconds: 300,
     });
+    
     if (!pwRl.allowed) {
       return NextResponse.json(
         { error: 'Terlalu banyak percobaan password. Tunggu 5 menit.' },
         { status: 429 }
       );
     }
+    pwRemaining = pwRl.remaining;
   }
 
   const valid = await verifyRoomPassword(room, password);
   if (!valid) {
+    let errorMsg = 'Password salah.';
+    if (pwRemaining >= 0 && pwRemaining <= 5) {
+      errorMsg += ` Peringatan: Sisa ${pwRemaining} percobaan sebelum diblokir.`;
+    }
     return NextResponse.json(
-      { error: 'Password salah.', requiresPassword: true },
+      { error: errorMsg, requiresPassword: true },
       { status: 401 }
     );
   }
