@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir, readdir, stat, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { tmpdir } from 'os';
 
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'meet');
+const UPLOAD_DIR = join(tmpdir(), 'meet-uploads');
 const MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
 // Background cleanup function
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     await writeFile(filePath, buffer);
 
-    const fileUrl = `/uploads/meet/${filename}`;
+    const fileUrl = `/api/download?file=${filename}`;
 
     return NextResponse.json({ success: true, url: fileUrl, name: originalName });
   } catch (error: any) {
