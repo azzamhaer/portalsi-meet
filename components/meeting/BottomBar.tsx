@@ -145,10 +145,6 @@ export function BottomBar({
                label={isRecording ? "Hentikan Rekaman" : "Mulai Rekaman"} 
                onClick={() => { onRecordToggle(); setShowMobileMore(false); }} />
           )}
-          {onToggleCaptions && (
-            <MItem icon={<MessageSquare className="h-4 w-4" />} label={captionsOn ? "Matikan Subtitle (CC)" : "Nyalakan Subtitle (CC)"} active={captionsOn}
-              onClick={() => { onToggleCaptions(); setShowMobileMore(false); }} />
-          )}
           {isHost && (
             <button onClick={() => { setShowMobileMore(false); onTimerClick?.(); }} className="flex items-center gap-3 w-full p-4 hover:bg-white/5 active:bg-white/10 transition-colors">
               <div className={`p-2 rounded-xl ${timerActive ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]' : 'bg-white/5 text-white/70'}`}><Timer className="w-5 h-5" /></div>
@@ -213,16 +209,7 @@ export function BottomBar({
           </div>
 
           {/* CC desktop */}
-          {onToggleCaptions && (
-            <div className="hidden md:block">
-              <Tooltip text={captionsOn ? 'Matikan Subtitle' : 'Nyalakan Subtitle (CC)'}>
-                <button onClick={onToggleCaptions}
-                  className={`glass-button rounded-full h-12 w-12 flex items-center justify-center font-bold text-sm ${captionsOn ? 'active !bg-[#8ab4f8]/20 !border-[#8ab4f8]/30 !text-[#8ab4f8]' : ''}`}>
-                  CC
-                </button>
-              </Tooltip>
-            </div>
-          )}
+
 
           {/* Hand desktop */}
           <div className="hidden md:block">
@@ -243,13 +230,6 @@ export function BottomBar({
                   <Disc className="h-5 w-5" />
                 </button>
               </Tooltip>
-              {isHost && (
-                <Tooltip text={timerActive ? "Timer Aktif" : "Mulai Timer"}>
-                  <button onClick={onTimerClick} className={`glass-button rounded-xl w-10 h-10 md:w-11 md:h-11 flex items-center justify-center transition-all ${timerActive ? 'bg-[#8ab4f8] text-black shadow-[0_0_15px_rgba(138,180,248,0.4)]' : 'hover:bg-white/10'}`}>
-                    <Timer className="w-5 h-5 md:w-5 md:h-5" />
-                  </button>
-                </Tooltip>
-              )}
             </div>
           )}
 
@@ -263,6 +243,9 @@ export function BottomBar({
 
         {/* RIGHT desktop */}
         <div className="hidden md:flex items-center gap-1.5 min-w-[200px] justify-end" onClick={e => e.stopPropagation()}>
+          {(isHost && onTimerClick) && (
+             <Tooltip text={timerActive ? "Timer Aktif" : "Set Timer"}><button onClick={onTimerClick} className={`glass-button rounded-full h-10 w-10 flex items-center justify-center ${timerActive ? 'active' : ''}`}><Timer className="h-5 w-5" /></button></Tooltip>
+          )}
           <Tooltip text="Info"><button onClick={() => toggle('info')} className={`glass-button rounded-full h-10 w-10 flex items-center justify-center ${activePanel === 'info' ? 'active' : ''}`}><Info className="h-5 w-5" /></button></Tooltip>
           <Tooltip text="Peserta">
             <button onClick={() => toggle('participants')} className={`glass-button rounded-full h-10 w-10 flex items-center justify-center relative ${activePanel === 'participants' ? 'active' : ''}`}>

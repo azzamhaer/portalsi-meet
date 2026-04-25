@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users, Pencil, PenTool, EyeOff } from 'lucide-react';
 import type { RoomPerms } from '../MeetingRoom';
 
-export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, virtualBg, onVirtualBgChange, noiseSuppression, onToggleNoiseSuppression }: {
+export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, virtualBg, onVirtualBgChange, noiseSuppression, onToggleNoiseSuppression, captionsOn, onToggleCaptions }: {
   onClose: () => void; enhanceLight: boolean; onToggleEnhanceLight: () => void;
   isHost?: boolean; perms?: RoomPerms; onPermsChange?: (p: RoomPerms) => void;
   onMuteAll?: () => void; onMuteVideoAll?: () => void;
   virtualBg?: string; onVirtualBgChange?: (bg: string) => void;
   noiseSuppression?: boolean; onToggleNoiseSuppression?: () => void;
+  captionsOn?: boolean; onToggleCaptions?: () => void;
 }) {
   const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] });
 
@@ -44,7 +45,7 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
 
             <Toggle icon={<Users className="h-4 w-4 text-orange-400" />} title="Mode Lobi" desc="User baru harus menunggu persetujuan" active={perms.lobbyMode} onToggle={() => onPermsChange({ ...perms, lobbyMode: !perms.lobbyMode })} />
             <Toggle icon={<Pencil className="h-4 w-4 text-cyan-400" />} title="Izinkan Ganti Nama" desc="Peserta bisa mengubah nama mereka" active={perms.allowRename} onToggle={() => onPermsChange({ ...perms, allowRename: !perms.allowRename })} />
-            <Toggle icon={<PenTool className="h-4 w-4 text-pink-400" />} title="Whiteboard Interaktif" desc="Aktifkan kanvas kolaborasi (Tldraw)" active={perms.allowWhiteboard} onToggle={() => onPermsChange({ ...perms, allowWhiteboard: !perms.allowWhiteboard })} />
+            <Toggle icon={<PenTool className="h-4 w-4 text-pink-400" />} title="Whiteboard Interaktif" desc="Aktifkan kanvas kolaborasi" active={perms.allowWhiteboard} onToggle={() => onPermsChange({ ...perms, allowWhiteboard: !perms.allowWhiteboard })} />
 
             <hr className="border-white/[0.06]" />
 
@@ -84,6 +85,9 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
           <Toggle icon={<Sun className="h-4 w-4 text-yellow-400" />} title="Enhance Lighting" desc="Tingkatkan kecerahan & kontras wajah" active={enhanceLight} onToggle={onToggleEnhanceLight} />
           {onToggleNoiseSuppression && (
              <Toggle icon={<Volume2 className="h-4 w-4 text-green-400" />} title="AI Noise Suppression" desc="Hilangkan suara bising dengan AI" active={!!noiseSuppression} onToggle={onToggleNoiseSuppression} />
+          )}
+          {onToggleCaptions && (
+             <Toggle icon={<MessageSquare className="h-4 w-4 text-purple-400" />} title="Live Captions (CC)" desc="Tampilkan teks otomatis" active={!!captionsOn} onToggle={onToggleCaptions} />
           )}
         </div>
         <div className="flex items-start gap-2.5 bg-white/[0.03] rounded-xl p-3">

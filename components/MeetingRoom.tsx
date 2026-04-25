@@ -17,6 +17,7 @@ import { ViewPanel } from './meeting/ViewPanel';
 import { WhiteboardPanel } from './meeting/WhiteboardPanel';
 import { DynamicWatermark } from './meeting/DynamicWatermark';
 import { TimerOverlay } from './meeting/TimerOverlay';
+import { TimerModal } from './meeting/TimerModal';
 
 export interface ChatMsg {
   id: string; text: string; senderName: string; senderIdentity: string; ts: number;
@@ -83,6 +84,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const [polls, setPolls] = useState<Poll[]>([]);
   const [qnas, setQnas] = useState<QnA[]>([]);
   const [timer, setTimer] = useState<{ endTime: number; duration: number } | null>(null);
+  const [showTimerModal, setShowTimerModal] = useState(false);
   const [admins, setAdmins] = useState<Set<string>>(new Set(isHost ? ['super_admin'] : [])); 
   
   const { localParticipant } = useLocalParticipant();
@@ -344,10 +346,10 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   }, [localParticipant]);
 
   const handleTimerClick = () => {
-    const minStr = prompt("Masukkan durasi timer (dalam menit):", "5");
-    if (!minStr) return;
-    const mins = parseInt(minStr, 10);
-    if (isNaN(mins) || mins <= 0) return alert("Durasi tidak valid");
+    setShowTimerModal(true);
+  };
+
+  const startTimer = (mins: number) => {
     const duration = mins * 60;
     const endTime = Date.now() + duration * 1000;
     pub({ type: 'timer_start', endTime, duration });
@@ -432,7 +434,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
                 localIdentity={localParticipant.identity} 
               />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
-              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} />}
+              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
               {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} />}
             </div>
@@ -445,8 +447,12 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
         onLeave={() => setShowLeaveConfirm(true)} onReaction={sendReaction}
         handRaised={handRaised} onToggleHand={toggleHand} unreadCount={unreadCount}
         permissions={perms} isHost={isHost || admins.has(localParticipant.identity)} isRecording={isRecording} onRecordToggle={toggleRecord}
-        captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(v => !v)}
         onTimerClick={handleTimerClick} timerActive={!!timer} />
+
+      {/* Timer Modal */}
+      {showTimerModal && (
+        <TimerModal onClose={() => setShowTimerModal(false)} onStart={startTimer} />
+      )}
 
       {/* Leave Confirmation */}
       {showLeaveConfirm && (
