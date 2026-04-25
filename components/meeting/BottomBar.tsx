@@ -6,7 +6,7 @@ import { Track } from 'livekit-client';
 import {
   PhoneOff, Info, Users, MessageSquare, Settings, Hand, Smile,
   Copy, MoreVertical, LayoutGrid, ScreenShare, ScreenShareOff,
-  Mic, MicOff, Video, VideoOff, RefreshCcw, ZoomIn, Disc
+  Mic, MicOff, Video, VideoOff, RefreshCcw, ZoomIn, Disc, PenTool, Timer
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 import type { PanelType } from './types';
@@ -20,13 +20,15 @@ export function BottomBar({
   onReaction, handRaised, onToggleHand,
   unreadCount, permissions, isHost,
   isRecording, onRecordToggle,
-  captionsOn, onToggleCaptions
+  captionsOn, onToggleCaptions,
+  onTimerClick, timerActive
 }: {
   roomId: string; activePanel: PanelType; onPanelChange: (p: PanelType) => void; onLeave: () => void;
   onReaction: (emoji: string) => void; handRaised: boolean; onToggleHand: () => void;
   unreadCount: number; permissions: RoomPerms; isHost: boolean;
   isRecording?: boolean; onRecordToggle?: () => void;
   captionsOn?: boolean; onToggleCaptions?: () => void;
+  onTimerClick?: () => void; timerActive?: boolean;
 }) {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [copied, setCopied] = useState(false);
@@ -57,7 +59,7 @@ export function BottomBar({
   const toggleShare = async () => {
     try {
       if (sharing) { await localParticipant.setScreenShareEnabled(false); setSharing(false); }
-      else { await localParticipant.setScreenShareEnabled(true); setSharing(true); }
+      else { await localParticipant.setScreenShareEnabled(true, { audio: true }); setSharing(true); }
     } catch { setSharing(false); }
   };
 
@@ -122,8 +124,6 @@ export function BottomBar({
             onClick={() => { toggle('participants'); setShowMobileMore(false); }} />
           <MItem icon={<MessageSquare className="h-4 w-4" />} label="Chat" active={activePanel === 'chat'} badge={unreadCount}
             onClick={() => { toggle('chat'); setShowMobileMore(false); }} />
-          {canShare && <MItem icon={<ScreenShare className="h-4 w-4" />} label="Screen Share"
-            onClick={() => { toggleShare(); setShowMobileMore(false); }} />}
           {canReact && <MItem icon={<Smile className="h-4 w-4" />} label="Reaksi"
             onClick={() => { setShowReactions(v => !v); setShowMobileMore(false); }} />}
           <MItem icon={<Hand className="h-4 w-4" />} label={handRaised ? 'Turunkan Tangan' : 'Angkat Tangan'} active={handRaised}
@@ -135,6 +135,8 @@ export function BottomBar({
             onClick={() => { toggle('settings'); setShowMobileMore(false); }} />
           <MItem icon={<LayoutGrid className="h-4 w-4" />} label="Tampilan" active={activePanel === 'view'}
             onClick={() => { toggle('view'); setShowMobileMore(false); }} />
+          {(permissions.allowWhiteboard || isHost) && <MItem icon={<PenTool className="h-4 w-4" />} label="Whiteboard" active={activePanel === 'whiteboard'}
+            onClick={() => { toggle('whiteboard'); setShowMobileMore(false); }} />}
           <hr className="border-white/[0.06] my-1 mx-3" />
           <MItem icon={<RefreshCcw className="h-4 w-4" />} label="Putar Kamera" onClick={() => { flipCamera(); setShowMobileMore(false); }} />
           <MItem icon={<ZoomIn className="h-4 w-4" />} label="Zoom Kamera" onClick={() => { zoomCamera(); setShowMobileMore(false); }} />
@@ -146,6 +148,12 @@ export function BottomBar({
           {onToggleCaptions && (
             <MItem icon={<MessageSquare className="h-4 w-4" />} label={captionsOn ? "Matikan Subtitle (CC)" : "Nyalakan Subtitle (CC)"} active={captionsOn}
               onClick={() => { onToggleCaptions(); setShowMobileMore(false); }} />
+          )}
+          {isHost && (
+            <button onClick={() => { setShowMobileMore(false); onTimerClick?.(); }} className="flex items-center gap-3 w-full p-4 hover:bg-white/5 active:bg-white/10 transition-colors">
+              <div className={`p-2 rounded-xl ${timerActive ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]' : 'bg-white/5 text-white/70'}`}><Timer className="w-5 h-5" /></div>
+              <span className={`font-medium ${timerActive ? 'text-[#8ab4f8]' : 'text-white/90'}`}>{timerActive ? 'Timer Aktif' : 'Mulai Timer'}</span>
+            </button>
           )}
         </div>
       )}
@@ -235,6 +243,13 @@ export function BottomBar({
                   <Disc className="h-5 w-5" />
                 </button>
               </Tooltip>
+              {isHost && (
+                <Tooltip text={timerActive ? "Timer Aktif" : "Mulai Timer"}>
+                  <button onClick={onTimerClick} className={`glass-button rounded-xl w-10 h-10 md:w-11 md:h-11 flex items-center justify-center transition-all ${timerActive ? 'bg-[#8ab4f8] text-black shadow-[0_0_15px_rgba(138,180,248,0.4)]' : 'hover:bg-white/10'}`}>
+                    <Timer className="w-5 h-5 md:w-5 md:h-5" />
+                  </button>
+                </Tooltip>
+              )}
             </div>
           )}
 
@@ -261,6 +276,9 @@ export function BottomBar({
               {unreadCount > 0 && <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full h-4 min-w-[16px] flex items-center justify-center font-bold px-1 animate-pulse">{unreadCount > 99 ? '99+' : unreadCount}</span>}
             </button>
           </Tooltip>
+          {(permissions.allowWhiteboard || isHost) && (
+             <Tooltip text="Whiteboard"><button onClick={() => toggle('whiteboard')} className={`glass-button rounded-full h-10 w-10 flex items-center justify-center ${activePanel === 'whiteboard' ? 'active' : ''}`}><PenTool className="h-5 w-5" /></button></Tooltip>
+          )}
           <Tooltip text="Pengaturan"><button onClick={() => toggle('settings')} className={`glass-button rounded-full h-10 w-10 flex items-center justify-center ${activePanel === 'settings' ? 'active' : ''}`}><Settings className="h-5 w-5" /></button></Tooltip>
           <Tooltip text="Tampilan"><button onClick={() => toggle('view')} className={`glass-button rounded-full h-10 w-10 flex items-center justify-center ${activePanel === 'view' ? 'active' : ''}`}><LayoutGrid className="h-5 w-5" /></button></Tooltip>
         </div>

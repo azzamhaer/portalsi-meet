@@ -14,6 +14,9 @@ import { ParticipantsPanel } from './meeting/ParticipantsPanel';
 import { InfoPanel } from './meeting/InfoPanel';
 import { SettingsPanel } from './meeting/SettingsPanel';
 import { ViewPanel } from './meeting/ViewPanel';
+import { WhiteboardPanel } from './meeting/WhiteboardPanel';
+import { DynamicWatermark } from './meeting/DynamicWatermark';
+import { TimerOverlay } from './meeting/TimerOverlay';
 
 export interface ChatMsg {
   id: string; text: string; senderName: string; senderIdentity: string; ts: number;
@@ -22,8 +25,11 @@ export interface ChatMsg {
   fileUrl?: string; fileName?: string;
   isPrivate?: boolean; targetIdentity?: string;
 }
+export interface PollOption { id: string; text: string; votes: number; }
+export interface Poll { id: string; question: string; options: PollOption[]; createdBy: string; voters: Record<string, string>; } // voterIdentity -> optionId
+export interface QnA { id: string; question: string; askerName: string; askerIdentity: string; upvotes: number; upvoters: string[]; ts: number; answered?: boolean; }
 export interface FloatingNotif { id: number; emoji?: string; text: string; name: string; }
-export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; }
+export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; allowWhiteboard: boolean; watermarkOn: boolean; }
 export interface Subtitle { id: string; identity: string; name: string; text: string; updatedAt: number; }
 
 const roomOptions: RoomOptions = {
@@ -69,11 +75,15 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const [bgProcessor, setBgProcessor] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [focusedIdentity, setFocusedIdentity] = useState<string | null>(null);
-  const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true });
+  const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true, allowWhiteboard: false, watermarkOn: false });
   const [joinToasts, setJoinToasts] = useState<string[]>([]);
   const [captionsOn, setCaptionsOn] = useState(false);
   const [subtitles, setSubtitles] = useState<Map<string, Subtitle>>(new Map());
   const [noiseSuppression, setNoiseSuppression] = useState(true);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [qnas, setQnas] = useState<QnA[]>([]);
+  const [timer, setTimer] = useState<{ endTime: number; duration: number } | null>(null);
+  const [admins, setAdmins] = useState<Set<string>>(new Set(isHost ? ['super_admin'] : [])); 
   
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
@@ -87,6 +97,10 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const joinTimer = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  const timerRef = useRef<{ endTime: number; duration: number } | null>(null);
+  const adminsRef = useRef<Set<string>>(new Set(isHost ? ['super_admin'] : []));
+
+  useEffect(() => { timerRef.current = timer; adminsRef.current = admins; }, [timer, admins]);
 
   useEffect(() => {
     if (noiseSuppression !== krisp.isNoiseFilterEnabled) {
@@ -132,10 +146,21 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
         else if (d.type === 'transcription') { setSubtitles(prev => { const next = new Map(prev); next.set(d.identity, { ...d, updatedAt: Date.now() }); return next; }); }
         else if (d.type === 'permissions') { if (!isHost) setPerms(d.perms); }
         else if (d.type === 'host_action') {
-          if (d.action === 'mute_all' && !isHost) localParticipant.setMicrophoneEnabled(false);
-          if (d.action === 'mute_video_all' && !isHost) localParticipant.setCameraEnabled(false);
+          if (d.action === 'mute_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setMicrophoneEnabled(false);
+          if (d.action === 'mute_video_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setCameraEnabled(false);
           if (d.action === 'stop_share' && d.target === localParticipant.identity) { const st = localParticipant.getTrackPublication(Track.Source.ScreenShare); if (st?.track) localParticipant.unpublishTrack(st.track); }
+          if (d.action === 'kick' && d.target === localParticipant.identity) { onLeave(); }
+          if (d.action === 'promote') setAdmins(prev => new Set(prev).add(d.target));
+          if (d.action === 'demote') setAdmins(prev => { const n = new Set(prev); n.delete(d.target); return n; });
         }
+        else if (d.type === 'admin_sync') { setAdmins(new Set(d.admins)); }
+        else if (d.type === 'poll_create') { setPolls(p => [...p, d.poll]); if (activePanelRef.current !== 'chat') setUnreadCount(c => c + 1); }
+        else if (d.type === 'poll_vote') { setPolls(p => p.map(poll => poll.id === d.pollId ? { ...poll, voters: { ...poll.voters, [d.identity]: d.optionId }, options: poll.options.map(opt => ({ ...opt, votes: opt.id === d.optionId ? opt.votes + 1 : (poll.voters[d.identity] === opt.id ? opt.votes - 1 : opt.votes) })) } : poll)); }
+        else if (d.type === 'qna_ask') { setQnas(p => [...p, d.qna]); if (activePanelRef.current !== 'chat') setUnreadCount(c => c + 1); }
+        else if (d.type === 'qna_upvote') { setQnas(p => p.map(q => q.id === d.qnaId ? { ...q, upvotes: d.upvote ? q.upvotes + 1 : q.upvotes - 1, upvoters: d.upvote ? [...q.upvoters, d.identity] : q.upvoters.filter(id => id !== d.identity) } : q)); }
+        else if (d.type === 'qna_answer') { setQnas(p => p.map(q => q.id === d.qnaId ? { ...q, answered: d.answered } : q)); }
+        else if (d.type === 'timer_start') { setTimer({ endTime: d.endTime, duration: d.duration }); }
+        else if (d.type === 'timer_stop') { setTimer(null); }
       } catch {}
     };
     const onJoin = (p: any) => {
@@ -148,6 +173,14 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
         const label = names.length <= 2 ? names.join(' dan ') : `${names[0]}, ${names[1]}, dan ${names.length - 2} lainnya`;
         setJoinToasts(prev => [label]);
         setTimeout(() => setJoinToasts([]), 4000);
+        
+        // Host syncs state to new joiners
+        if (isHost) {
+          setTimeout(() => {
+             room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'admin_sync', admins: Array.from(adminsRef.current) })), { reliable: true });
+             if (timerRef.current) room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'timer_start', endTime: timerRef.current.endTime, duration: timerRef.current.duration })), { reliable: true });
+          }, 1500);
+        }
       }, 2000);
     };
     room.on(RoomEvent.DataReceived, onData);
@@ -310,6 +343,22 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
     return () => { clearTimeout(to); document.removeEventListener('visibilitychange', handle); window.removeEventListener('blur', handle); window.removeEventListener('focus', handle); if (pipRef.current) { pipRef.current.close(); pipRef.current = null; } };
   }, [localParticipant]);
 
+  const handleTimerClick = () => {
+    const minStr = prompt("Masukkan durasi timer (dalam menit):", "5");
+    if (!minStr) return;
+    const mins = parseInt(minStr, 10);
+    if (isNaN(mins) || mins <= 0) return alert("Durasi tidak valid");
+    const duration = mins * 60;
+    const endTime = Date.now() + duration * 1000;
+    pub({ type: 'timer_start', endTime, duration });
+    setTimer({ endTime, duration });
+  };
+
+  const handleStopTimer = () => {
+    pub({ type: 'timer_stop' });
+    setTimer(null);
+  };
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden relative">
       {/* Floating reactions */}
@@ -331,6 +380,11 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
         </div>
       )}
 
+      {/* Timer Overlay */}
+      {timer && (
+        <TimerOverlay endTime={timer.endTime} isHost={isHost || admins.has(localParticipant.identity)} onStop={handleStopTimer} />
+      )}
+
       <div className="relative flex flex-1 overflow-hidden pb-[80px]">
         <div className="relative flex-1 overflow-hidden">
           <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight}
@@ -347,24 +401,40 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
               ))}
             </div>
           )}
+
+          {/* Dynamic Watermark */}
+          {perms.watermarkOn && (
+            <DynamicWatermark name={localParticipant.name || 'Peserta'} roomId={roomId} />
+          )}
         </div>
 
         {/* Chat always mounted */}
         <div style={{ display: activePanel === 'chat' ? undefined : 'none' }}
              className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
-          <ChatPanel messages={chatMsgs} localIdentity={localParticipant.identity}
+          <ChatPanel messages={chatMsgs} localIdentity={localParticipant.identity} localName={localParticipant.name || 'Anonim'}
             onSend={sendChat} onEdit={editChat} onDelete={deleteChat} onClose={() => setActivePanel(null)}
-            disabled={!isHost && !perms.allowChat} />
+            disabled={!isHost && !perms.allowChat && !admins.has(localParticipant.identity)}
+            polls={polls} qnas={qnas} isHost={isHost || admins.has(localParticipant.identity)} pub={pub} />
         </div>
 
         {activePanel && activePanel !== 'chat' && (
           <>
             <div className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setActivePanel(null)} />
             <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
-              {activePanel === 'participants' && <ParticipantsPanel isHost={isHost} roomId={roomId} onClose={() => setActivePanel(null)} onStopShare={stopShare} />}
+              {activePanel === 'participants' && <ParticipantsPanel 
+                isHost={isHost || admins.has(localParticipant.identity)} 
+                isSuperAdmin={isHost}
+                roomId={roomId} 
+                onClose={() => setActivePanel(null)} 
+                onStopShare={stopShare} 
+                admins={admins} 
+                pub={pub} 
+                localIdentity={localParticipant.identity} 
+              />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
               {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
+              {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} />}
             </div>
           </>
         )}
@@ -374,8 +444,9 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
       <BottomBar roomId={roomId} activePanel={activePanel} onPanelChange={setActivePanel}
         onLeave={() => setShowLeaveConfirm(true)} onReaction={sendReaction}
         handRaised={handRaised} onToggleHand={toggleHand} unreadCount={unreadCount}
-        permissions={perms} isHost={isHost} isRecording={isRecording} onRecordToggle={toggleRecord}
-        captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(v => !v)} />
+        permissions={perms} isHost={isHost || admins.has(localParticipant.identity)} isRecording={isRecording} onRecordToggle={toggleRecord}
+        captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(v => !v)}
+        onTimerClick={handleTimerClick} timerActive={!!timer} />
 
       {/* Leave Confirmation */}
       {showLeaveConfirm && (

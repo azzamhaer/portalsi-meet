@@ -8,11 +8,11 @@ import { Users, X, Crown, Search, Mic, MicOff, Video, VideoOff, ScreenShare, Che
 interface WaitingUser { waitingId: string; name: string; ts: number; }
 
 export function ParticipantsPanel({
-  isHost, roomId, onClose, onStopShare, hostIdentity,
+  isHost, isSuperAdmin, roomId, onClose, onStopShare, admins, pub, localIdentity
 }: {
-  isHost: boolean; roomId: string; onClose: () => void;
+  isHost: boolean; isSuperAdmin?: boolean; roomId: string; onClose: () => void;
   onStopShare?: (identity: string) => void;
-  hostIdentity?: string;
+  admins?: Set<string>; pub?: (d: any) => void; localIdentity?: string;
 }) {
   const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
@@ -49,7 +49,18 @@ export function ParticipantsPanel({
   async function kickParticipant(identity: string) {
     if (!isHost) return;
     if (!confirm('Keluarkan peserta ini?')) return;
+    pub?.({ type: 'host_action', action: 'kick', target: identity });
     try { await fetch(`/api/rooms/${roomId}/kick`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identity }) }); } catch {}
+  }
+
+  function handlePromote(identity: string) {
+    if (!confirm('Jadikan peserta ini Admin?')) return;
+    pub?.({ type: 'host_action', action: 'promote', target: identity });
+  }
+
+  function handleDemote(identity: string) {
+    if (!confirm('Hapus status Admin dari peserta ini?')) return;
+    pub?.({ type: 'host_action', action: 'demote', target: identity });
   }
 
   const filtered = participants.filter(p => !search || (p.name || '').toLowerCase().includes(search.toLowerCase()));
@@ -109,7 +120,8 @@ export function ParticipantsPanel({
       <div className="flex-1 overflow-y-auto meet-scrollbar px-4 pb-4 space-y-1">
         {filtered.map(p => {
           const isLocal = p.identity === localParticipant.identity;
-          const isTheHost = p.identity.startsWith('host-');
+          const isTheHost = p.identity.startsWith('host-') || admins?.has(p.identity);
+          const isRealSuperAdmin = p.identity.startsWith('host-');
           const mic = p.getTrackPublication(Track.Source.Microphone);
           const cam = p.getTrackPublication(Track.Source.Camera);
           const micOn = !!mic && !mic.isMuted;
@@ -126,7 +138,7 @@ export function ParticipantsPanel({
                 <p className="text-sm font-medium truncate flex items-center gap-1.5 text-white/90">
                   {p.name || 'Anonim'}
                   {isLocal && <span className="text-[10px] text-white/40 font-normal">(Anda)</span>}
-                  {isTheHost && <Crown className="h-3.5 w-3.5 text-yellow-400" />}
+                  {isRealSuperAdmin ? <Crown className="h-3.5 w-3.5 text-yellow-400" /> : isTheHost ? <span className="text-[10px] bg-[#8ab4f8]/20 text-[#8ab4f8] px-1.5 rounded uppercase font-bold tracking-wider">Admin</span> : null}
                   {isSharing && <ScreenShare className="h-3 w-3 text-green-400" />}
                 </p>
               </div>
@@ -141,9 +153,18 @@ export function ParticipantsPanel({
                       <ScreenShare className="h-3.5 w-3.5" />
                     </button>
                   )}
-                  <button onClick={() => kickParticipant(p.identity)} className="rounded-full p-1.5 text-red-400 hover:bg-red-400/10 transition-all" title="Keluarkan">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  {isSuperAdmin && !isRealSuperAdmin && (
+                    isTheHost ? (
+                      <button onClick={() => handleDemote(p.identity)} className="rounded-full px-2 py-1 text-[10px] font-bold text-red-400 bg-red-400/10 hover:bg-red-400/20 transition-all" title="Hapus Admin">Demote</button>
+                    ) : (
+                      <button onClick={() => handlePromote(p.identity)} className="rounded-full px-2 py-1 text-[10px] font-bold text-[#8ab4f8] bg-[#8ab4f8]/10 hover:bg-[#8ab4f8]/20 transition-all" title="Jadikan Admin">Promote</button>
+                    )
+                  )}
+                  {!isRealSuperAdmin && (
+                    <button onClick={() => kickParticipant(p.identity)} className="rounded-full p-1.5 text-red-400 hover:bg-red-400/10 transition-all" title="Keluarkan">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               )}
             </div>

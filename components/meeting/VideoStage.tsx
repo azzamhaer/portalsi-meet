@@ -117,15 +117,19 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
 function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
   return (
     <>
-      <div className="hidden md:block absolute bottom-4 right-4 z-40 pip-container w-56 h-36 group" onClick={onClick}>
-        <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full" />
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-          <Maximize2 className="h-5 w-5 text-white drop-shadow" />
-        </div>
+      <div className="hidden md:block fixed inset-0 z-40 pointer-events-none">
+        <Draggable bounds="parent" defaultPosition={{x: window.innerWidth - 240, y: window.innerHeight - 160}}>
+          <div className="absolute top-0 left-0 pip-container w-56 h-36 group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10" onClick={onClick}>
+            <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
+              <Maximize2 className="h-5 w-5 text-white drop-shadow" />
+            </div>
+          </div>
+        </Draggable>
       </div>
       <div className="md:hidden fixed inset-0 z-40 pointer-events-none pb-[80px]">
-        <Draggable bounds="parent">
-          <div className="absolute right-2 bottom-2 pip-container w-28 h-40 cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick}>
+        <Draggable bounds="parent" defaultPosition={{x: window.innerWidth - 120, y: window.innerHeight - 250}}>
+          <div className="absolute top-0 left-0 pip-container w-28 h-40 cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick}>
             <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full [&>video]:object-cover" />
           </div>
         </Draggable>

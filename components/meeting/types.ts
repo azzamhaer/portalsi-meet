@@ -17,4 +17,4 @@ export interface ShellProps {
   onLeave: () => void;
 }
 
-export type PanelType = 'chat' | 'participants' | 'info' | 'settings' | 'view' | null;
+export type PanelType = 'chat' | 'participants' | 'info' | 'settings' | 'view' | 'whiteboard' | null;
