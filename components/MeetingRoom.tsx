@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants } from '@livekit/components-react';
+import { useKrispNoiseFilter } from '@livekit/components-react/krisp';
 import { BackgroundBlur } from '@livekit/track-processors';
 import { VideoPresets, DisconnectReason, RoomOptions, Track, RoomEvent } from 'livekit-client';
 import type { MeetingProps, PanelType } from './meeting/types';
@@ -23,6 +24,7 @@ export interface ChatMsg {
 }
 export interface FloatingNotif { id: number; emoji?: string; text: string; name: string; }
 export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; }
+export interface Subtitle { id: string; identity: string; name: string; text: string; updatedAt: number; }
 
 const roomOptions: RoomOptions = {
   adaptiveStream: true, dynacast: true,
@@ -69,8 +71,13 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const [focusedIdentity, setFocusedIdentity] = useState<string | null>(null);
   const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true });
   const [joinToasts, setJoinToasts] = useState<string[]>([]);
+  const [captionsOn, setCaptionsOn] = useState(false);
+  const [subtitles, setSubtitles] = useState<Map<string, Subtitle>>(new Map());
+  const [noiseSuppression, setNoiseSuppression] = useState(true);
+  
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
+  const krisp = useKrispNoiseFilter();
   const pipRef = useRef<any>(null);
   const chatRef = useRef<ChatMsg[]>([]);
   const activePanelRef = useRef(activePanel);
@@ -80,6 +87,12 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const joinTimer = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+
+  useEffect(() => {
+    if (noiseSuppression !== krisp.isNoiseFilterEnabled) {
+      krisp.setNoiseFilterEnabled(noiseSuppression).catch(() => {});
+    }
+  }, [noiseSuppression, krisp]);
 
   useEffect(() => { chatRef.current = chatMsgs; }, [chatMsgs]);
   useEffect(() => { activePanelRef.current = activePanel; if (activePanel === 'chat') setUnreadCount(0); }, [activePanel]);
@@ -116,6 +129,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
           setChatMsgs(prev => { const ids = new Set(prev.map(m => m.id)); return [...prev, ...(d.messages as ChatMsg[]).filter(m => !ids.has(m.id))].sort((a, b) => a.ts - b.ts); });
         } else if (d.type === 'reaction') { addFloat(d.emoji, d.name); }
         else if (d.type === 'hand') { setRaisedHands(p => { const n = new Map(p); d.raised ? n.set(d.identity, d.name) : n.delete(d.identity); return n; }); if (d.raised) addFloat('✋', d.name); }
+        else if (d.type === 'transcription') { setSubtitles(prev => { const next = new Map(prev); next.set(d.identity, { ...d, updatedAt: Date.now() }); return next; }); }
         else if (d.type === 'permissions') { if (!isHost) setPerms(d.perms); }
         else if (d.type === 'host_action') {
           if (d.action === 'mute_all' && !isHost) localParticipant.setMicrophoneEnabled(false);
@@ -147,6 +161,59 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const editChat = useCallback((id: string, text: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, text, edited: true, editedAt: ts } : m)); pub({ type: 'chat', action: 'edit', id, text, ts }); }, [pub]);
   const deleteChat = useCallback((id: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, deleted: true, deletedAt: ts } : m)); pub({ type: 'chat', action: 'delete', id, ts }); }, [pub]);
   const sendReaction = useCallback((emoji: string) => { if (!isHost && !perms.allowReactions) return; const name = localParticipant.name || 'Anonim'; addFloat(emoji, name); pub({ type: 'reaction', emoji, name }); }, [pub, localParticipant, perms, isHost]);
+
+  // === LIVE CAPTIONS ===
+  useEffect(() => {
+    if (!captionsOn) return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Browser Anda tidak mendukung Live Captions.");
+      setCaptionsOn(false);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'id-ID';
+
+    let lastId = '';
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+        else interimTranscript += event.results[i][0].transcript;
+      }
+      const text = finalTranscript || interimTranscript;
+      if (!text.trim()) return;
+      if (event.results[event.results.length - 1].isFinal || !lastId) lastId = Date.now().toString();
+
+      const payload = { type: 'transcription', id: lastId, identity: localParticipant.identity, name: localParticipant.name || 'Anonim', text: text.trim() };
+      setSubtitles(prev => { const next = new Map(prev); next.set(payload.identity, { ...payload, updatedAt: Date.now() }); return next; });
+      pub(payload);
+    };
+
+    recognition.onerror = () => {};
+    recognition.onend = () => { if (captionsOn) try { recognition.start(); } catch {} };
+    try { recognition.start(); } catch {}
+    return () => { recognition.onend = null; recognition.stop(); };
+  }, [captionsOn, localParticipant, pub]);
+
+  useEffect(() => {
+    if (subtitles.size === 0) return;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      setSubtitles(prev => {
+        const next = new Map(prev);
+        for (const [key, sub] of Array.from(next.entries())) {
+          if (now - sub.updatedAt > 5000) { next.delete(key); changed = true; }
+        }
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [subtitles]);
 
   const [handRaised, setHandRaised] = useState(false);
   const toggleHand = useCallback(() => { const r = !handRaised; setHandRaised(r); const n = localParticipant.name || 'Anonim'; setRaisedHands(p => { const m = new Map(p); r ? m.set(localParticipant.identity, n) : m.delete(localParticipant.identity); return m; }); pub({ type: 'hand', raised: r, identity: localParticipant.identity, name: n }); }, [handRaised, pub, localParticipant]);
@@ -268,6 +335,18 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
         <div className="relative flex-1 overflow-hidden">
           <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight}
             focusedIdentity={focusedIdentity} onFocusParticipant={setFocusedIdentity} />
+          
+          {/* Subtitles Overlay */}
+          {subtitles.size > 0 && (
+            <div className="absolute bottom-[20px] left-0 right-0 z-40 flex flex-col items-center gap-2 pointer-events-none px-4">
+              {Array.from(subtitles.values()).sort((a, b) => a.updatedAt - b.updatedAt).slice(-3).map(sub => (
+                <div key={sub.id} className="bg-black/60 backdrop-blur-md px-4 py-2.5 rounded-xl text-center max-w-[80%] animate-fade-in shadow-[0_4px_20px_rgba(0,0,0,0.5)] border border-white/10">
+                  <span className="text-[11px] font-bold text-[#8ab4f8] block mb-0.5">{sub.name}</span>
+                  <span className="text-sm md:text-base font-medium text-white drop-shadow-lg leading-snug">{sub.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Chat always mounted */}
@@ -284,7 +363,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
             <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
               {activePanel === 'participants' && <ParticipantsPanel isHost={isHost} roomId={roomId} onClose={() => setActivePanel(null)} onStopShare={stopShare} />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
-              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} />}
+              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
             </div>
           </>
@@ -295,7 +374,8 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
       <BottomBar roomId={roomId} activePanel={activePanel} onPanelChange={setActivePanel}
         onLeave={() => setShowLeaveConfirm(true)} onReaction={sendReaction}
         handRaised={handRaised} onToggleHand={toggleHand} unreadCount={unreadCount}
-        permissions={perms} isHost={isHost} isRecording={isRecording} onRecordToggle={toggleRecord} />
+        permissions={perms} isHost={isHost} isRecording={isRecording} onRecordToggle={toggleRecord}
+        captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(v => !v)} />
 
       {/* Leave Confirmation */}
       {showLeaveConfirm && (

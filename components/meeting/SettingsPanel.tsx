@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users, Pencil } from 'lucide-react';
 import type { RoomPerms } from '../MeetingRoom';
 
-export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, virtualBg, onVirtualBgChange }: {
+export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, virtualBg, onVirtualBgChange, noiseSuppression, onToggleNoiseSuppression }: {
   onClose: () => void; enhanceLight: boolean; onToggleEnhanceLight: () => void;
   isHost?: boolean; perms?: RoomPerms; onPermsChange?: (p: RoomPerms) => void;
   onMuteAll?: () => void; onMuteVideoAll?: () => void;
   virtualBg?: string; onVirtualBgChange?: (bg: string) => void;
+  noiseSuppression?: boolean; onToggleNoiseSuppression?: () => void;
 }) {
   const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] });
-  const [noiseSuppression, setNoiseSuppression] = useState(true);
 
   useEffect(() => {
     navigator.mediaDevices?.enumerateDevices().then(all => {
@@ -77,7 +77,9 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
             </div>
           )}
           <Toggle icon={<Sun className="h-4 w-4 text-yellow-400" />} title="Enhance Lighting" desc="Tingkatkan kecerahan & kontras wajah" active={enhanceLight} onToggle={onToggleEnhanceLight} />
-          <Toggle icon={<Volume2 className="h-4 w-4 text-green-400" />} title="Noise Suppression" desc="Kurangi noise latar belakang" active={noiseSuppression} onToggle={() => setNoiseSuppression(!noiseSuppression)} />
+          {onToggleNoiseSuppression && (
+             <Toggle icon={<Volume2 className="h-4 w-4 text-green-400" />} title="AI Noise Suppression" desc="Hilangkan suara bising dengan AI" active={!!noiseSuppression} onToggle={onToggleNoiseSuppression} />
+          )}
         </div>
         <div className="flex items-start gap-2.5 bg-white/[0.03] rounded-xl p-3">
           <AlertCircle className="h-4 w-4 text-white/30 shrink-0 mt-0.5" />

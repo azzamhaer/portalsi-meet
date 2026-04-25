@@ -19,12 +19,14 @@ export function BottomBar({
   roomId, activePanel, onPanelChange, onLeave,
   onReaction, handRaised, onToggleHand,
   unreadCount, permissions, isHost,
-  isRecording, onRecordToggle
+  isRecording, onRecordToggle,
+  captionsOn, onToggleCaptions
 }: {
   roomId: string; activePanel: PanelType; onPanelChange: (p: PanelType) => void; onLeave: () => void;
   onReaction: (emoji: string) => void; handRaised: boolean; onToggleHand: () => void;
   unreadCount: number; permissions: RoomPerms; isHost: boolean;
   isRecording?: boolean; onRecordToggle?: () => void;
+  captionsOn?: boolean; onToggleCaptions?: () => void;
 }) {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [copied, setCopied] = useState(false);
@@ -141,6 +143,10 @@ export function BottomBar({
                label={isRecording ? "Hentikan Rekaman" : "Mulai Rekaman"} 
                onClick={() => { onRecordToggle(); setShowMobileMore(false); }} />
           )}
+          {onToggleCaptions && (
+            <MItem icon={<MessageSquare className="h-4 w-4" />} label={captionsOn ? "Matikan Subtitle (CC)" : "Nyalakan Subtitle (CC)"} active={captionsOn}
+              onClick={() => { onToggleCaptions(); setShowMobileMore(false); }} />
+          )}
         </div>
       )}
 
@@ -197,6 +203,18 @@ export function BottomBar({
               </button>
             </Tooltip>
           </div>
+
+          {/* CC desktop */}
+          {onToggleCaptions && (
+            <div className="hidden md:block">
+              <Tooltip text={captionsOn ? 'Matikan Subtitle' : 'Nyalakan Subtitle (CC)'}>
+                <button onClick={onToggleCaptions}
+                  className={`glass-button rounded-full h-12 w-12 flex items-center justify-center font-bold text-sm ${captionsOn ? 'active !bg-[#8ab4f8]/20 !border-[#8ab4f8]/30 !text-[#8ab4f8]' : ''}`}>
+                  CC
+                </button>
+              </Tooltip>
+            </div>
+          )}
 
           {/* Hand desktop */}
           <div className="hidden md:block">
