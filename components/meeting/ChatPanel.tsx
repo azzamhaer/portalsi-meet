@@ -5,13 +5,14 @@ import { MessageSquare, X, Send, MoreVertical, Pencil, Trash2, Reply, Paperclip,
 import { useParticipants } from '@livekit/components-react';
 import type { ChatMsg, Poll, QnA } from '../MeetingRoom';
 
-export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, onDelete, onClose, disabled, polls, qnas, isHost, pub }: {
+export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, onDelete, onClose, disabled, polls, isHost, pub, allowPolls, onPollCreate }: {
   messages: ChatMsg[]; localIdentity: string; localName: string;
   onSend: (text: string, opts?: Partial<ChatMsg>) => void; onEdit: (id: string, text: string) => void;
   onDelete: (id: string) => void; onClose: () => void; disabled?: boolean;
-  polls: Poll[]; qnas: QnA[]; isHost: boolean; pub: (d: any) => void;
+  polls: Poll[]; isHost: boolean; pub: (d: any) => void; allowPolls?: boolean;
+  onPollCreate?: (poll: Poll) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'chat' | 'qna' | 'polls'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'polls'>('chat');
 
   // Chat State
   const [input, setInput] = useState('');
@@ -24,8 +25,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const participants = useParticipants();
 
-  // Q&A State
-  const [qnaInput, setQnaInput] = useState('');
+
 
   // Polls State
   const [pollQuestion, setPollQuestion] = useState('');
@@ -73,13 +73,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
   const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const visibleMessages = messages.filter(m => !m.isPrivate || m.senderIdentity === localIdentity || m.targetIdentity === localIdentity);
 
-  const handleAskQna = () => {
-    if (!qnaInput.trim()) return;
-    const qnaId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const qna: QnA = { id: qnaId, question: qnaInput.trim(), askerName: localName, askerIdentity: localIdentity, upvotes: 0, upvoters: [], ts: Date.now() };
-    pub({ type: 'qna_ask', qna });
-    setQnaInput('');
-  };
+
 
   const handleCreatePoll = () => {
     if (!pollQuestion.trim() || pollOptions.some(o => !o.trim())) return alert('Lengkapi pertanyaan dan opsi poll.');
@@ -90,6 +84,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
       createdBy: localName, voters: {}
     };
     pub({ type: 'poll_create', poll });
+    onPollCreate?.(poll);
     setIsCreatingPoll(false); setPollQuestion(''); setPollOptions(['', '']);
   };
 
@@ -100,9 +95,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
           <button onClick={() => setActiveTab('chat')} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${activeTab === 'chat' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white/90'}`}>
             <MessageSquare className="w-3.5 h-3.5" /> Chat
           </button>
-          <button onClick={() => setActiveTab('qna')} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${activeTab === 'qna' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white/90'}`}>
-            <HelpCircle className="w-3.5 h-3.5" /> Q&A
-          </button>
+
           <button onClick={() => setActiveTab('polls')} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold transition-all ${activeTab === 'polls' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white/90'}`}>
             <BarChart2 className="w-3.5 h-3.5" /> Polls
           </button>
@@ -256,9 +249,11 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
               })
             )}
           </div>
-          {isHost && !isCreatingPoll && (
-            <div className="p-3 border-t border-white/[0.06] bg-black/20">
-              <button onClick={() => setIsCreatingPoll(true)} className="w-full py-2.5 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold rounded-xl transition-all">Buat Polling</button>
+          {(isHost || allowPolls) && !isCreatingPoll && (
+            <div className="p-4 border-t border-white/[0.06] bg-black/20">
+              <button onClick={() => setIsCreatingPoll(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-[#8ab4f8] text-black hover:bg-[#8ab4f8]/90 transition-all shadow-[0_0_15px_rgba(138,180,248,0.2)]">
+                <PlusCircle className="w-4 h-4" /> Buat Polling
+              </button>
             </div>
           )}
         </div>

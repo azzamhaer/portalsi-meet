@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useTracks, useLocalParticipant, GridLayout, ParticipantTile, useSpeakingParticipants } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import Draggable from 'react-draggable';
@@ -115,12 +115,15 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
 }
 
 function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
+  const nodeRefDesktop = useRef(null);
+  const nodeRefMobile = useRef(null);
+  
   return (
     <>
       <div className="hidden md:block fixed inset-0 z-40 pointer-events-none">
-        <Draggable bounds="parent" defaultPosition={{x: window.innerWidth - 240, y: window.innerHeight - 160}}>
-          <div className="absolute top-0 left-0 pip-container w-56 h-36 group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10" onClick={onClick}>
-            <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full" />
+        <Draggable bounds="parent" defaultPosition={{x: window.innerWidth - 240, y: window.innerHeight - 160}} nodeRef={nodeRefDesktop}>
+          <div ref={nodeRefDesktop} className="absolute top-0 left-0 pip-container w-56 h-36 group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none' }}>
+            <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none" />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
               <Maximize2 className="h-5 w-5 text-white drop-shadow" />
             </div>
@@ -128,9 +131,9 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
         </Draggable>
       </div>
       <div className="md:hidden fixed inset-0 z-40 pointer-events-none pb-[80px]">
-        <Draggable bounds="parent" defaultPosition={{x: window.innerWidth - 120, y: window.innerHeight - 250}}>
-          <div className="absolute top-0 left-0 pip-container w-28 h-40 cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick}>
-            <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full [&>video]:object-cover" />
+        <Draggable bounds="parent" defaultPosition={{x: window.innerWidth - 120, y: window.innerHeight - 250}} nodeRef={nodeRefMobile}>
+          <div ref={nodeRefMobile} className="absolute top-0 left-0 pip-container w-28 h-40 cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none' }}>
+            <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none [&>video]:object-cover" />
           </div>
         </Draggable>
       </div>

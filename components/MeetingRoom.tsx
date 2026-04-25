@@ -28,9 +28,9 @@ export interface ChatMsg {
 }
 export interface PollOption { id: string; text: string; votes: number; }
 export interface Poll { id: string; question: string; options: PollOption[]; createdBy: string; voters: Record<string, string>; } // voterIdentity -> optionId
-export interface QnA { id: string; question: string; askerName: string; askerIdentity: string; upvotes: number; upvoters: string[]; ts: number; answered?: boolean; }
+
 export interface FloatingNotif { id: number; emoji?: string; text: string; name: string; }
-export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; allowWhiteboard: boolean; watermarkOn: boolean; }
+export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; allowWhiteboard: boolean; watermarkOn: boolean; allowPolls: boolean; }
 export interface Subtitle { id: string; identity: string; name: string; text: string; updatedAt: number; }
 
 const roomOptions: RoomOptions = {
@@ -76,13 +76,13 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const [bgProcessor, setBgProcessor] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [focusedIdentity, setFocusedIdentity] = useState<string | null>(null);
-  const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true, allowWhiteboard: false, watermarkOn: false });
+  const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true, allowWhiteboard: false, watermarkOn: false, allowPolls: false });
   const [joinToasts, setJoinToasts] = useState<string[]>([]);
   const [captionsOn, setCaptionsOn] = useState(false);
   const [subtitles, setSubtitles] = useState<Map<string, Subtitle>>(new Map());
   const [noiseSuppression, setNoiseSuppression] = useState(true);
   const [polls, setPolls] = useState<Poll[]>([]);
-  const [qnas, setQnas] = useState<QnA[]>([]);
+
   const [timer, setTimer] = useState<{ endTime: number; duration: number } | null>(null);
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [admins, setAdmins] = useState<Set<string>>(new Set(isHost ? ['super_admin'] : [])); 
@@ -158,9 +158,6 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
         else if (d.type === 'admin_sync') { setAdmins(new Set(d.admins)); }
         else if (d.type === 'poll_create') { setPolls(p => [...p, d.poll]); if (activePanelRef.current !== 'chat') setUnreadCount(c => c + 1); }
         else if (d.type === 'poll_vote') { setPolls(p => p.map(poll => poll.id === d.pollId ? { ...poll, voters: { ...poll.voters, [d.identity]: d.optionId }, options: poll.options.map(opt => ({ ...opt, votes: opt.id === d.optionId ? opt.votes + 1 : (poll.voters[d.identity] === opt.id ? opt.votes - 1 : opt.votes) })) } : poll)); }
-        else if (d.type === 'qna_ask') { setQnas(p => [...p, d.qna]); if (activePanelRef.current !== 'chat') setUnreadCount(c => c + 1); }
-        else if (d.type === 'qna_upvote') { setQnas(p => p.map(q => q.id === d.qnaId ? { ...q, upvotes: d.upvote ? q.upvotes + 1 : q.upvotes - 1, upvoters: d.upvote ? [...q.upvoters, d.identity] : q.upvoters.filter(id => id !== d.identity) } : q)); }
-        else if (d.type === 'qna_answer') { setQnas(p => p.map(q => q.id === d.qnaId ? { ...q, answered: d.answered } : q)); }
         else if (d.type === 'timer_start') { setTimer({ endTime: d.endTime, duration: d.duration }); }
         else if (d.type === 'timer_stop') { setTimer(null); }
       } catch {}
@@ -196,6 +193,11 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
   const editChat = useCallback((id: string, text: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, text, edited: true, editedAt: ts } : m)); pub({ type: 'chat', action: 'edit', id, text, ts }); }, [pub]);
   const deleteChat = useCallback((id: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, deleted: true, deletedAt: ts } : m)); pub({ type: 'chat', action: 'delete', id, ts }); }, [pub]);
   const sendReaction = useCallback((emoji: string) => { if (!isHost && !perms.allowReactions) return; const name = localParticipant.name || 'Anonim'; addFloat(emoji, name); pub({ type: 'reaction', emoji, name }); }, [pub, localParticipant, perms, isHost]);
+
+  const handlePollCreate = useCallback((poll: Poll) => {
+    setPolls(p => [...p, poll]);
+    sendChat('📊 Polling baru telah dibuat! Silakan cek tab Polls.');
+  }, [sendChat]);
 
   // === LIVE CAPTIONS ===
   useEffect(() => {
@@ -349,8 +351,8 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
     setShowTimerModal(true);
   };
 
-  const startTimer = (mins: number) => {
-    const duration = mins * 60;
+  const startTimer = (totalSeconds: number) => {
+    const duration = totalSeconds;
     const endTime = Date.now() + duration * 1000;
     pub({ type: 'timer_start', endTime, duration });
     setTimer({ endTime, duration });
@@ -416,7 +418,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
           <ChatPanel messages={chatMsgs} localIdentity={localParticipant.identity} localName={localParticipant.name || 'Anonim'}
             onSend={sendChat} onEdit={editChat} onDelete={deleteChat} onClose={() => setActivePanel(null)}
             disabled={!isHost && !perms.allowChat && !admins.has(localParticipant.identity)}
-            polls={polls} qnas={qnas} isHost={isHost || admins.has(localParticipant.identity)} pub={pub} />
+            polls={polls} isHost={isHost || admins.has(localParticipant.identity)} pub={pub} allowPolls={perms.allowPolls} onPollCreate={handlePollCreate} />
         </div>
 
         {activePanel && activePanel !== 'chat' && (
@@ -436,7 +438,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
               {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
-              {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} />}
+              {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} allowWhiteboard={perms.allowWhiteboard} />}
             </div>
           </>
         )}

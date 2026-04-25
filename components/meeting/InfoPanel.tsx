@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useLocalParticipant } from '@livekit/components-react';
 import { ConnectionQuality } from 'livekit-client';
-import { X, Copy, Check, Eye, EyeOff, Clock, Shield, Pencil } from 'lucide-react';
+import { X, Copy, Check, Eye, EyeOff, Clock, Shield, Pencil, Save, Trash2, Loader2 } from 'lucide-react';
 
 function SignalBars() {
   const { localParticipant } = useLocalParticipant();
@@ -45,8 +45,11 @@ export function InfoPanel({ roomId, isHost, password, startTime, onClose, allowR
   const [copied, setCopied] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState(localParticipant.name || '');
+  const [localPw, setLocalPw] = useState(password);
+  const [editingPw, setEditingPw] = useState(false);
+  const [newPw, setNewPw] = useState('');
+  const [isSavingPw, setIsSavingPw] = useState(false);
 
   useEffect(() => {
     const iv = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000);
@@ -72,6 +75,33 @@ export function InfoPanel({ roomId, isHost, password, startTime, onClose, allowR
     setEditing(false);
   }
 
+  async function handleSavePassword(action: 'set' | 'remove') {
+    setIsSavingPw(true);
+    try {
+      const payload = { 
+        hostIdentity: localParticipant.identity,
+        password: action === 'set' ? newPw : ''
+      };
+      const res = await fetch(`/api/rooms/${roomId}/password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLocalPw(data.password);
+        setEditingPw(false);
+        setNewPw('');
+      } else {
+        alert(data.error || 'Gagal mengubah password');
+      }
+    } catch (e) {
+      alert('Terjadi kesalahan.');
+    } finally {
+      setIsSavingPw(false);
+    }
+  }
+
   const canRename = isHost || (allowRename !== false);
 
   return (
@@ -91,16 +121,43 @@ export function InfoPanel({ roomId, isHost, password, startTime, onClose, allowR
           </div>
           {copied && <p className="text-xs text-green-400 animate-fade-in">{password ? 'Room ID + password tersalin!' : 'Room ID tersalin!'}</p>}
         </div>
-        {isHost && password && (
+        {isHost && (
           <div className="space-y-2">
-            <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Password</label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 font-mono text-base text-white/80">{showPw ? password : '••••••••'}</div>
-              <button onClick={() => setShowPw(!showPw)} className="glass-button rounded-xl p-3 shrink-0">
-                {showPw ? <EyeOff className="h-5 w-5 text-white/70" /> : <Eye className="h-5 w-5 text-white/70" />}
-              </button>
-            </div>
-            <p className="text-[11px] text-white/30">Hanya host yang bisa melihat password.</p>
+            <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex justify-between items-center">
+              <span>Password Room</span>
+            </label>
+            
+            {editingPw ? (
+              <div className="flex items-center gap-2">
+                <input type="text" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Masukkan password baru" autoFocus
+                  onKeyDown={e => e.key === 'Enter' && handleSavePassword('set')}
+                  className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-[#8ab4f8]/40" />
+                <button onClick={() => handleSavePassword('set')} disabled={isSavingPw || !newPw.trim()} className="glass-button rounded-xl p-2.5 text-green-400 disabled:opacity-50">
+                  {isSavingPw ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                </button>
+                <button onClick={() => { setEditingPw(false); setNewPw(''); }} disabled={isSavingPw} className="glass-button rounded-xl p-2.5 text-white/40 disabled:opacity-50"><X className="h-4 w-4" /></button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 font-mono text-base text-white/80">
+                  {localPw ? (showPw ? localPw : '••••••••') : <span className="text-white/40 text-sm">Tidak ada password</span>}
+                </div>
+                {localPw && (
+                  <button onClick={() => setShowPw(!showPw)} className="glass-button rounded-xl p-3 shrink-0">
+                    {showPw ? <EyeOff className="h-5 w-5 text-white/70" /> : <Eye className="h-5 w-5 text-white/70" />}
+                  </button>
+                )}
+                <button onClick={() => { setEditingPw(true); setNewPw(localPw || ''); }} className="glass-button rounded-xl p-3 shrink-0" title="Ubah Password">
+                  <Pencil className="h-5 w-5 text-white/70" />
+                </button>
+                {localPw && (
+                  <button onClick={() => { if(confirm('Hapus password?')) handleSavePassword('remove') }} disabled={isSavingPw} className="glass-button rounded-xl p-3 shrink-0" title="Hapus Password">
+                    {isSavingPw ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5 text-red-400" />}
+                  </button>
+                )}
+              </div>
+            )}
+            <p className="text-[11px] text-white/30">Hanya host yang bisa melihat & mengubah password.</p>
           </div>
         )}
         <div className="flex items-center gap-3 bg-white/[0.04] rounded-xl px-4 py-3">

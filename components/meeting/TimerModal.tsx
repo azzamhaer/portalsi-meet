@@ -3,14 +3,17 @@
 import { useState } from 'react';
 import { Timer, X } from 'lucide-react';
 
-export function TimerModal({ onClose, onStart }: { onClose: () => void; onStart: (mins: number) => void }) {
+export function TimerModal({ onClose, onStart }: { onClose: () => void; onStart: (totalSeconds: number) => void }) {
   const [mins, setMins] = useState('5');
+  const [secs, setSecs] = useState('0');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = parseInt(mins, 10);
-    if (!isNaN(parsed) && parsed > 0) {
-      onStart(parsed);
+    const m = parseInt(mins, 10) || 0;
+    const s = parseInt(secs, 10) || 0;
+    const totalSeconds = m * 60 + s;
+    if (totalSeconds > 0) {
+      onStart(totalSeconds);
       onClose();
     }
   };
@@ -29,17 +32,30 @@ export function TimerModal({ onClose, onStart }: { onClose: () => void; onStart:
           </p>
 
           <form onSubmit={handleSubmit}>
-            <div className="mb-6">
-              <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Durasi (Menit)</label>
-              <input
-                type="number"
-                min="1"
-                max="120"
-                value={mins}
-                onChange={e => setMins(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#8ab4f8]/50 focus:bg-white/10 transition-all font-mono text-lg"
-                autoFocus
-              />
+            <div className="flex gap-4 mb-6">
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Menit</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={mins}
+                  onChange={e => setMins(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#8ab4f8]/50 focus:bg-white/10 transition-all font-mono text-lg"
+                  autoFocus
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Detik</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={secs}
+                  onChange={e => setSecs(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#8ab4f8]/50 focus:bg-white/10 transition-all font-mono text-lg"
+                />
+              </div>
             </div>
             
             <div className="flex gap-3">
