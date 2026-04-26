@@ -93,9 +93,6 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const [raisedHands, setRaisedHands] = useState<Map<string, string>>(new Map());
   const [floats, setFloats] = useState<FloatingNotif[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [virtualBg, setVirtualBg] = useState<string>('none');
-  const bgProcessorRef = useRef<any>(null);
-  const appliedBgRef = useRef<{ trackId: string, bg: string }>({ trackId: '', bg: '' });
   const [unreadCount, setUnreadCount] = useState(0);
   const [focusedIdentity, setFocusedIdentity] = useState<string | null>(null);
   const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true, allowWhiteboard: false, watermarkOn: false, allowPolls: false });
@@ -135,28 +132,6 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
 
   useEffect(() => { chatRef.current = chatMsgs; }, [chatMsgs]);
   useEffect(() => { activePanelRef.current = activePanel; if (activePanel === 'chat') setUnreadCount(0); }, [activePanel]);
-
-  useEffect(() => {
-    const applyBg = async () => {
-      const track = localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
-      if (!track) return;
-      
-      const trackId = track.mediaStreamTrack?.id || track.sid || '';
-      
-      if (appliedBgRef.current.trackId === trackId && appliedBgRef.current.bg === virtualBg) return;
-
-      try {
-        if (virtualBg === 'blur') {
-          if (!bgProcessorRef.current) { bgProcessorRef.current = BackgroundBlur(10); }
-          await track.setProcessor(bgProcessorRef.current);
-        } else {
-          await track.setProcessor(undefined as any);
-        }
-        appliedBgRef.current = { trackId, bg: virtualBg };
-      } catch (e) { console.error("BG Error:", e); }
-    };
-    applyBg();
-  }, [virtualBg, localParticipant]);
 
   // Handle Video Quality Change dynamically
   useEffect(() => {
@@ -436,6 +411,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   };
 
   const handleEndForEveryone = async () => {
+    setShowLeaveConfirm(false);
     pub({ type: 'host_action', action: 'end_meeting' });
     try {
       await fetch(`/api/rooms/${roomId}`, { method: 'DELETE' });
@@ -530,7 +506,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 onDemote={handleDemoteAction}
               />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost || admins.has(localParticipant.identity)} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || admins.has(localParticipant.identity) || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
-              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost || admins.has(localParticipant.identity)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
+              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost || admins.has(localParticipant.identity)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
               {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} allowWhiteboard={perms.allowWhiteboard} />}
             </div>

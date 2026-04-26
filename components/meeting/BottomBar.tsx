@@ -145,11 +145,11 @@ export function BottomBar({
                label={isRecording ? "Hentikan Rekaman" : "Mulai Rekaman"} 
                onClick={() => { onRecordToggle(); setShowMobileMore(false); }} />
           )}
-          {isHost && (
-            <button onClick={() => { setShowMobileMore(false); onTimerClick?.(); }} className="flex items-center gap-3 w-full p-4 hover:bg-white/5 active:bg-white/10 transition-colors">
-              <div className={`p-2 rounded-xl ${timerActive ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]' : 'bg-white/5 text-white/70'}`}><Timer className="w-5 h-5" /></div>
-              <span className={`font-medium ${timerActive ? 'text-[#8ab4f8]' : 'text-white/90'}`}>{timerActive ? 'Timer Aktif' : 'Mulai Timer'}</span>
-            </button>
+          {isHost && onTimerClick && (
+            <MItem icon={<Timer className={`h-4 w-4 ${timerActive ? 'text-[#8ab4f8]' : ''}`} />} 
+              label={timerActive ? "Timer Aktif" : "Mulai Timer"} 
+              active={timerActive}
+              onClick={() => { onTimerClick(); setShowMobileMore(false); }} />
           )}
         </div>
       )}

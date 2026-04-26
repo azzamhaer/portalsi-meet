@@ -21,6 +21,7 @@ export function ParticipantsPanel({
   const tracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }], { onlySubscribed: false });
   const [waitingUsers, setWaitingUsers] = useState<WaitingUser[]>([]);
   const pollRef = useRef<any>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'promote' | 'demote' | 'kick', target: string, name: string } | null>(null);
 
   // Poll waiting users if host
   useEffect(() => {
@@ -47,22 +48,30 @@ export function ParticipantsPanel({
     } catch {}
   }
 
-  async function kickParticipant(identity: string) {
+  function kickParticipant(identity: string, name: string) {
     if (!isHost) return;
-    if (!confirm('Keluarkan peserta ini?')) return;
-    pub?.({ type: 'host_action', action: 'kick', target: identity });
-    try { await fetch(`/api/rooms/${roomId}/kick`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identity }) }); } catch {}
+    setConfirmAction({ type: 'kick', target: identity, name });
   }
 
-  function handlePromote(identity: string) {
-    if (!confirm('Jadikan peserta ini Admin?')) return;
-    if (onPromote) onPromote(identity);
+  function handlePromote(identity: string, name: string) {
+    setConfirmAction({ type: 'promote', target: identity, name });
   }
 
-  function handleDemote(identity: string) {
-    if (!confirm('Hapus status Admin dari peserta ini?')) return;
-    if (onDemote) onDemote(identity);
+  function handleDemote(identity: string, name: string) {
+    setConfirmAction({ type: 'demote', target: identity, name });
   }
+
+  const executeConfirm = () => {
+    if (!confirmAction) return;
+    const { type, target } = confirmAction;
+    if (type === 'promote' && onPromote) onPromote(target);
+    else if (type === 'demote' && onDemote) onDemote(target);
+    else if (type === 'kick') {
+      pub?.({ type: 'host_action', action: 'kick', target });
+      try { fetch(`/api/rooms/${roomId}/kick`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identity: target }) }); } catch {}
+    }
+    setConfirmAction(null);
+  };
 
   const filtered = participants.filter(p => !search || (p.name || '').toLowerCase().includes(search.toLowerCase()));
 
@@ -156,13 +165,13 @@ export function ParticipantsPanel({
                   )}
                   {isSuperAdmin && !isRealSuperAdmin && (
                     isTheHost ? (
-                      <button onClick={() => handleDemote(p.identity)} className="rounded-full px-2 py-1 text-[10px] font-bold text-red-400 bg-red-400/10 hover:bg-red-400/20 transition-all" title="Hapus Admin">Demote</button>
+                      <button onClick={() => handleDemote(p.identity, p.name || 'Anonim')} className="rounded-full px-2 py-1 text-[10px] font-bold text-red-400 bg-red-400/10 hover:bg-red-400/20 transition-all" title="Hapus Admin">Demote</button>
                     ) : (
-                      <button onClick={() => handlePromote(p.identity)} className="rounded-full px-2 py-1 text-[10px] font-bold text-[#8ab4f8] bg-[#8ab4f8]/10 hover:bg-[#8ab4f8]/20 transition-all" title="Jadikan Admin">Promote</button>
+                      <button onClick={() => handlePromote(p.identity, p.name || 'Anonim')} className="rounded-full px-2 py-1 text-[10px] font-bold text-[#8ab4f8] bg-[#8ab4f8]/10 hover:bg-[#8ab4f8]/20 transition-all" title="Jadikan Admin">Promote</button>
                     )
                   )}
                   {!isRealSuperAdmin && (
-                    <button onClick={() => kickParticipant(p.identity)} className="rounded-full p-1.5 text-red-400 hover:bg-red-400/10 transition-all" title="Keluarkan">
+                    <button onClick={() => kickParticipant(p.identity, p.name || 'Anonim')} className="rounded-full p-1.5 text-red-400 hover:bg-red-400/10 transition-all" title="Keluarkan">
                       <X className="h-3.5 w-3.5" />
                     </button>
                   )}
@@ -172,6 +181,25 @@ export function ParticipantsPanel({
           );
         })}
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmAction(null)} />
+          <div className="relative glass-panel rounded-2xl p-5 w-full max-w-[300px] text-center shadow-2xl border border-white/10 animate-scale-in">
+            <h3 className="text-base font-bold text-white mb-2">Konfirmasi Tindakan</h3>
+            <p className="text-sm text-white/70 mb-5">
+              {confirmAction.type === 'promote' ? `Jadikan ${confirmAction.name} sebagai Admin?` :
+               confirmAction.type === 'demote' ? `Hapus status Admin dari ${confirmAction.name}?` :
+               `Keluarkan ${confirmAction.name} dari rapat ini?`}
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmAction(null)} className="flex-1 py-2 rounded-xl text-xs font-semibold text-white/80 bg-white/[0.07] hover:bg-white/[0.12] transition-all">Batal</button>
+              <button onClick={executeConfirm} className={`flex-1 py-2 rounded-xl text-xs font-semibold text-white transition-all ${confirmAction.type === 'kick' || confirmAction.type === 'demote' ? 'bg-red-500 hover:bg-red-400' : 'bg-[#8ab4f8] hover:bg-[#8ab4f8]/90 text-black'}`}>Ya, Lanjutkan</button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

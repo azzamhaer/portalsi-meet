@@ -8,7 +8,6 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
   onClose: () => void; enhanceLight: boolean; onToggleEnhanceLight: () => void;
   isHost?: boolean; perms?: RoomPerms; onPermsChange?: (p: RoomPerms) => void;
   onMuteAll?: () => void; onMuteVideoAll?: () => void;
-  virtualBg?: string; onVirtualBgChange?: (bg: string) => void;
   noiseSuppression?: boolean; onToggleNoiseSuppression?: () => void;
   captionsOn?: boolean; onToggleCaptions?: () => void;
   videoQuality?: 'highest' | 'balanced' | 'lowest'; onVideoQualityChange?: (q: 'highest' | 'balanced' | 'lowest') => void;
@@ -87,15 +86,6 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
         <hr className="border-white/[0.06]" />
         <div className="space-y-4">
           <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider">Efek Visual</h3>
-          {onVirtualBgChange && (
-            <div className="space-y-2 mb-4">
-              <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-1.5"><Camera className="h-3.5 w-3.5"/> Latar Belakang Virtual</label>
-              <select value={virtualBg || 'none'} onChange={e => onVirtualBgChange(e.target.value)} className="w-full bg-[#121218] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 outline-none focus:border-[#8ab4f8]/40 appearance-none cursor-pointer">
-                <option value="none">Tidak Ada</option>
-                <option value="blur">Efek Blur</option>
-              </select>
-            </div>
-          )}
           <Toggle icon={<Sun className="h-4 w-4 text-yellow-400" />} title="Enhance Lighting" desc="Tingkatkan kecerahan & kontras wajah" active={enhanceLight} onToggle={onToggleEnhanceLight} />
           {onToggleNoiseSuppression && (
              <Toggle icon={<Volume2 className="h-4 w-4 text-green-400" />} title="AI Noise Suppression" desc="Hilangkan suara bising dengan AI" active={!!noiseSuppression} onToggle={onToggleNoiseSuppression} />
