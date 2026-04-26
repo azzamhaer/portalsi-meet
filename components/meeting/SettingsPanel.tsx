@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users, Pencil, PenTool, EyeOff, BarChart2 } from 'lucide-react';
 import type { RoomPerms } from '../MeetingRoom';
 
-export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, virtualBg, onVirtualBgChange, noiseSuppression, onToggleNoiseSuppression, captionsOn, onToggleCaptions, videoQuality, onVideoQualityChange }: {
+export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, noiseSuppression, onToggleNoiseSuppression, captionsOn, onToggleCaptions, videoQuality, onVideoQualityChange }: {
   onClose: () => void; enhanceLight: boolean; onToggleEnhanceLight: () => void;
   isHost?: boolean; perms?: RoomPerms; onPermsChange?: (p: RoomPerms) => void;
   onMuteAll?: () => void; onMuteVideoAll?: () => void;
