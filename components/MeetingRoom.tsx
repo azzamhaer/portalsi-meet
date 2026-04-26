@@ -638,18 +638,18 @@ function buildPip(pw: any, lp: any, onLeave: () => void, cbs: any) {
   ];
   items.forEach(i => {
     const btn = pw.document.createElement('button'); btn.className='mi'; btn.innerHTML=i.icon+`<span>${i.label}</span>`;
-    btn.onclick = (e) => { e.stopPropagation(); i.act(); };
+    btn.onclick = (e: any) => { e.stopPropagation(); i.act(); };
     menu.appendChild(btn);
   });
   
-  db.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
+  db.onclick = (e: any) => { e.stopPropagation(); menu.classList.toggle('open'); };
   pw.document.body.onclick = () => menu.classList.remove('open');
 
   const sync = () => { const m=lp.isMicrophoneEnabled,c=lp.isCameraEnabled; mb.innerHTML=m?MI:MO; mb.className=`b ${m?'bd':'ba'}`; cb.innerHTML=c?CI:CO; cb.className=`b ${c?'bd':'ba'}`; };
   sync();
-  mb.onclick = (e) => { e.stopPropagation(); lp.setMicrophoneEnabled(!lp.isMicrophoneEnabled); setTimeout(sync,100); };
-  cb.onclick = (e) => { e.stopPropagation(); lp.setCameraEnabled(!lp.isCameraEnabled); setTimeout(()=>{sync();updateVideo();},300); };
-  lb.onclick = (e) => { e.stopPropagation(); onLeave(); };
+  mb.onclick = (e: any) => { e.stopPropagation(); lp.setMicrophoneEnabled(!lp.isMicrophoneEnabled); setTimeout(sync,100); };
+  cb.onclick = (e: any) => { e.stopPropagation(); lp.setCameraEnabled(!lp.isCameraEnabled); setTimeout(()=>{sync();updateVideo();},300); };
+  lb.onclick = (e: any) => { e.stopPropagation(); onLeave(); };
   
   nav.appendChild(mb); nav.appendChild(cb); nav.appendChild(db); nav.appendChild(lb);
   wrap.appendChild(menu);
