@@ -288,7 +288,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
     return () => clearInterval(interval);
   }, [subtitles]);
 
-  const toggleHand = useCallback(() => { const r = !handRaised; setHandRaised(r); const n = localParticipant.name || 'Anonim'; setRaisedHands(p => { const m = new Map(p); r ? m.set(localParticipant.identity, n) : m.delete(localParticipant.identity); return m; }); pub({ type: 'hand', raised: r, identity: localParticipant.identity, name: n }); }, [handRaised, pub, localParticipant]);
+  const toggleHand = useCallback(() => { const r = !handRaisedRef.current; setHandRaised(r); const n = localParticipant.name || 'Anonim'; setRaisedHands(p => { const m = new Map(p); r ? m.set(localParticipant.identity, n) : m.delete(localParticipant.identity); return m; }); pub({ type: 'hand', raised: r, identity: localParticipant.identity, name: n }); }, [pub, localParticipant]);
 
   // Host actions — broadcast + persist to Redis
   const broadcastPerms = useCallback((p: RoomPerms) => {
@@ -412,7 +412,16 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 () => { pw.close(); pipRef.current = null; setShowLeaveConfirm(true); },
                 {
                   onChat: () => { window.focus(); setActivePanel('chat'); pw.close(); },
-                  onCopy: () => { navigator.clipboard.writeText(window.location.href).catch(()=>{}); },
+                  onCopy: () => {
+                    const url = window.location.href;
+                    if (pw.navigator && pw.navigator.clipboard) {
+                      pw.navigator.clipboard.writeText(url).catch(() => {
+                        const i = pw.document.createElement('input'); i.value = url; pw.document.body.appendChild(i); i.select(); pw.document.execCommand('copy'); pw.document.body.removeChild(i);
+                      });
+                    } else {
+                      const i = pw.document.createElement('input'); i.value = url; pw.document.body.appendChild(i); i.select(); pw.document.execCommand('copy'); pw.document.body.removeChild(i);
+                    }
+                  },
                   onHand: toggleHand,
                   onCaptions: () => setCaptionsOn(v => !v)
                 },

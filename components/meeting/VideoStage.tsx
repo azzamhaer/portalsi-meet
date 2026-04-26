@@ -29,6 +29,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, mirrorCamera, foc
   if (isAlone && localCam) {
     return (
       <div className={`relative h-full w-full flex items-center justify-center p-2 ${fc}`}>
+        {mirrorCamera && <style>{`.lk-participant-tile[data-lk-local-participant="true"] video { transform: rotateY(0deg) !important; }`}</style>}
         <div className="relative w-full h-full max-w-5xl rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           <GridLayout tracks={[localCam]} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
             <ParticipantTile />
@@ -38,11 +39,11 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, mirrorCamera, foc
     );
   }
 
-  // === GALLERY VIEW ===
   if (viewMode === 'gallery') {
     const allTracks = hideSelf ? remoteTracks : tracks;
     return (
       <div className={`h-full w-full p-2 ${fc}`}>
+        {mirrorCamera && <style>{`.lk-participant-tile[data-lk-local-participant="true"] video { transform: rotateY(0deg) !important; }`}</style>}
         <GridLayout tracks={allTracks.slice(0, 16)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
           <ParticipantTile />
         </GridLayout>
@@ -64,6 +65,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, mirrorCamera, foc
   if (remoteTracks.length === 1 && mainTrack) {
     return (
       <div className={`relative h-full w-full p-2 ${fc}`}>
+        {mirrorCamera && <style>{`.lk-participant-tile[data-lk-local-participant="true"] video { transform: rotateY(0deg) !important; }`}</style>}
         <div className="h-full w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
         </div>
@@ -77,6 +79,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, mirrorCamera, foc
     const allTracks = hideSelf ? remoteTracks : tracks;
     return (
       <div className={`h-full w-full p-2 ${fc}`}>
+        {mirrorCamera && <style>{`.lk-participant-tile[data-lk-local-participant="true"] video { transform: rotateY(0deg) !important; }`}</style>}
         <GridLayout tracks={allTracks.slice(0, 9)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
           <ParticipantTile />
         </GridLayout>
@@ -87,6 +90,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, mirrorCamera, foc
   // Main + side strip
   return (
     <div className={`relative h-full w-full flex flex-col md:flex-row gap-2 p-2 ${fc}`}>
+      {mirrorCamera && <style>{`.lk-participant-tile[data-lk-local-participant="true"] video { transform: rotateY(0deg) !important; }`}</style>}
       {mainTrack && (
         <div className="flex-1 min-h-0 rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative">
           <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
@@ -117,8 +121,6 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, mirrorCamera, foc
 function Pip({ trackRef, onClick, mirrorCamera }: { trackRef: any; onClick: () => void; mirrorCamera?: boolean }) {
   const nodeRefDesktop = useRef(null);
   const nodeRefMobile = useRef(null);
-  const [mirrored, setMirrored] = useState(false);
-  const isMirrored = mirrorCamera !== undefined ? mirrorCamera !== mirrored : mirrored;
   const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
   const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
   
@@ -126,28 +128,22 @@ function Pip({ trackRef, onClick, mirrorCamera }: { trackRef: any; onClick: () =
     <>
       <div className="hidden md:block fixed inset-0 z-40 pointer-events-none pb-[80px]">
         <Draggable bounds="parent" defaultPosition={{x: winW - 250, y: winH - 260}} nodeRef={nodeRefDesktop}>
-          <div ref={nodeRefDesktop} className="absolute top-0 left-0 pip-container group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10 hover:shadow-2xl transition-shadow" onClick={onClick} style={{ touchAction: 'none', width: '224px', height: '144px', minWidth: '150px', minHeight: '100px', maxWidth: '400px', maxHeight: '300px', resize: 'both' }}>
-            <div style={{ transform: isMirrored ? 'scaleX(-1)' : 'scaleX(1)', width: '100%', height: '100%', transition: 'transform 0.3s ease' }}>
+          <div ref={nodeRefDesktop} className="absolute top-0 left-0 pip-container group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10 hover:shadow-2xl transition-shadow" onClick={onClick} style={{ touchAction: 'none', width: '224px', height: '144px', minWidth: '150px', minHeight: '100px', maxWidth: '400px', maxHeight: '300px', resize: 'both', aspectRatio: '16/9' }}>
+            <div style={{ width: '100%', height: '100%' }}>
               <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none" />
             </div>
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
               <Maximize2 className="h-6 w-6 text-white drop-shadow" />
             </div>
-            <button onClick={(e) => { e.stopPropagation(); setMirrored(v => !v); }} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-black/60 rounded-lg text-white pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity" title="Flip Horizontal">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v18h-6M9 3H3v18h6M17.5 12h-11M11 8.5L7.5 12 11 15.5"/></svg>
-            </button>
           </div>
         </Draggable>
       </div>
       <div className="md:hidden fixed inset-0 z-40 pointer-events-none pb-[80px]">
         <Draggable bounds="parent" defaultPosition={{x: winW - 130, y: winH - 250}} nodeRef={nodeRefMobile}>
-          <div ref={nodeRefMobile} className="absolute top-0 left-0 pip-container cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none', width: '112px', height: '160px', minWidth: '80px', minHeight: '120px', maxWidth: '200px', maxHeight: '280px', resize: 'both' }}>
-            <div style={{ transform: isMirrored ? 'scaleX(-1)' : 'scaleX(1)', width: '100%', height: '100%', transition: 'transform 0.3s ease' }}>
+          <div ref={nodeRefMobile} className="absolute top-0 left-0 pip-container cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none', width: '112px', height: '160px', minWidth: '80px', minHeight: '120px', maxWidth: '200px', maxHeight: '280px', resize: 'both', aspectRatio: '7/10' }}>
+            <div style={{ width: '100%', height: '100%' }}>
               <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none [&>video]:object-cover" />
             </div>
-            <button onClick={(e) => { e.stopPropagation(); setMirrored(v => !v); }} className="absolute top-1.5 right-1.5 p-1.5 bg-black/40 rounded-lg text-white pointer-events-auto" title="Flip Horizontal">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v18h-6M9 3H3v18h6M17.5 12h-11M11 8.5L7.5 12 11 15.5"/></svg>
-            </button>
           </div>
         </Draggable>
       </div>

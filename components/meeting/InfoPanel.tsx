@@ -63,7 +63,7 @@ export function InfoPanel({ roomId, isHost, password, startTime, onClose, allowR
   };
 
   async function copyRoomInfo() {
-    let text = roomId;
+    let text = window.location.href;
     if (password) text += ` | pw:${btoa(password)}`;
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
   }
