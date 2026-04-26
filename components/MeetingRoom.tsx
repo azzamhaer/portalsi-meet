@@ -99,6 +99,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true, allowWhiteboard: false, allowPolls: false });
   const [joinToasts, setJoinToasts] = useState<string[]>([]);
   const [captionsOn, setCaptionsOn] = useState(false);
+  const [mirrorCamera, setMirrorCamera] = useState(false);
+  const [handRaised, setHandRaised] = useState(false);
   const [subtitles, setSubtitles] = useState<Map<string, Subtitle>>(new Map());
   const [noiseSuppression, setNoiseSuppression] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
@@ -122,8 +124,14 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<{ endTime: number; duration: number } | null>(null);
   const adminsRef = useRef<Set<string>>(new Set(isHost ? ['super_admin'] : []));
+  const handRaisedRef = useRef(handRaised);
+  const subtitlesRef = useRef(subtitles);
+  const raisedHandsRef = useRef(raisedHands);
 
   useEffect(() => { timerRef.current = timer; adminsRef.current = admins; }, [timer, admins]);
+  useEffect(() => { handRaisedRef.current = handRaised; }, [handRaised]);
+  useEffect(() => { subtitlesRef.current = subtitles; }, [subtitles]);
+  useEffect(() => { raisedHandsRef.current = raisedHands; }, [raisedHands]);
 
   useEffect(() => {
     if (noiseSuppression !== krisp.isNoiseFilterEnabled) {
@@ -280,7 +288,6 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
     return () => clearInterval(interval);
   }, [subtitles]);
 
-  const [handRaised, setHandRaised] = useState(false);
   const toggleHand = useCallback(() => { const r = !handRaised; setHandRaised(r); const n = localParticipant.name || 'Anonim'; setRaisedHands(p => { const m = new Map(p); r ? m.set(localParticipant.identity, n) : m.delete(localParticipant.identity); return m; }); pub({ type: 'hand', raised: r, identity: localParticipant.identity, name: n }); }, [handRaised, pub, localParticipant]);
 
   // Host actions — broadcast + persist to Redis
@@ -405,10 +412,11 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 () => { pw.close(); pipRef.current = null; setShowLeaveConfirm(true); },
                 {
                   onChat: () => { window.focus(); setActivePanel('chat'); pw.close(); },
-                  onCopy: () => { navigator.clipboard.writeText(roomId).catch(()=>{}); },
+                  onCopy: () => { navigator.clipboard.writeText(window.location.href).catch(()=>{}); },
                   onHand: toggleHand,
                   onCaptions: () => setCaptionsOn(v => !v)
-                }
+                },
+                { handRaisedRef, subtitlesRef, raisedHandsRef }
               );
               pw.addEventListener('pagehide', () => { pipRef.current = null; });
             } else {
@@ -504,7 +512,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
 
       <div className="relative flex flex-1 overflow-hidden pb-[80px]">
         <div className="relative flex-1 overflow-hidden">
-          <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight}
+          <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight} mirrorCamera={mirrorCamera}
             focusedIdentity={focusedIdentity} onFocusParticipant={setFocusedIdentity} />
           
           {/* Subtitles Overlay */}
@@ -546,7 +554,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 onDemote={handleDemoteAction}
               />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost || admins.has(localParticipant.identity)} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || admins.has(localParticipant.identity) || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
-              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost || admins.has(localParticipant.identity)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
+              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost || admins.has(localParticipant.identity)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} mirrorCamera={mirrorCamera} onToggleMirrorCamera={() => setMirrorCamera(v => !v)} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
               {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} allowWhiteboard={perms.allowWhiteboard} />}
             </div>
@@ -593,14 +601,19 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
 }
 
 // === PiP builder — no room ID, polling sync, leave confirmation ===
-function buildPip(pw: any, lp: any, onLeave: () => void, cbs: any) {
+function buildPip(pw: any, lp: any, onLeave: () => void, cbs: any, stateRefs?: any) {
   const s = pw.document.createElement('style');
   s.textContent = `*{margin:0;box-sizing:border-box;font-family:system-ui}body{background:#0a0a0f;overflow:hidden}.w{height:100vh;position:relative}.v{height:100%;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;object-fit:cover}.nv{color:rgba(255,255,255,0.2);font-size:13px;text-align:center}.nav{display:flex;gap:8px;padding:10px 16px;justify-content:center;position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);opacity:0;transition:opacity 0.2s}.w:hover .nav{opacity:1}.b{width:40px;height:40px;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;position:relative}.bd{background:rgba(255,255,255,0.12);color:#e8eaed}.bd:hover{background:rgba(255,255,255,0.2)}.ba{background:rgba(234,67,53,0.8);color:#fff}.br{background:rgba(234,67,53,0.85);color:#fff}.br:hover{background:#ea4335}svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .menu{position:absolute;bottom:55px;right:10px;background:#202124;border-radius:12px;padding:8px 0;box-shadow:0 10px 30px rgba(0,0,0,0.5);display:none;flex-direction:column;min-width:220px;transform:translateY(10px);opacity:0;transition:all 0.2s ease;z-index:100}
   .menu.open{display:flex;transform:translateY(0);opacity:1}
   .mi{display:flex;align-items:center;gap:12px;padding:10px 16px;color:#e8eaed;background:transparent;border:none;width:100%;text-align:left;cursor:pointer;font-size:14px;transition:background 0.2s}
   .mi:hover{background:rgba(255,255,255,0.08)}
-  .mi svg{width:16px;height:16px;color:#9aa0a6}`;
+  .mi svg{width:16px;height:16px;color:#9aa0a6}
+  .cc{position:absolute;bottom:70px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:4px;width:90%;pointer-events:none}
+  .cc-i{background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);padding:6px 12px;border-radius:8px;text-align:center}
+  .c-n{font-size:10px;color:#8ab4f8;font-weight:bold;margin-bottom:2px}
+  .c-t{font-size:13px;color:#fff}
+  .rh-ind{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);padding:6px 12px;border-radius:12px;color:#fff;font-size:12px;display:none;z-index:10}`;
   pw.document.head.appendChild(s);
   const MI='<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
   const MO='<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .76-.13 1.5-.35 2.18"/></svg>';
@@ -633,17 +646,24 @@ function buildPip(pw: any, lp: any, onLeave: () => void, cbs: any) {
   const items = [
     { label: 'In-call messages', icon: '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', act: () => { cbs.onChat(); menu.classList.remove('open'); } },
     { label: 'Copy joining info', icon: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>', act: () => { cbs.onCopy(); mb.innerHTML='✓'; setTimeout(sync,1500); menu.classList.remove('open'); } },
-    { label: 'Raise hand', icon: '<svg viewBox="0 0 24 24"><path d="M18 14v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5"/><path d="M11 11V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6"/><path d="M15 11v1"/><path d="M7 11V7a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4"/><path d="M3 14V9a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v5"/></svg>', act: () => { cbs.onHand(); menu.classList.remove('open'); } },
+    { id: 'pip-hand-btn', label: 'Raise hand', icon: '<svg viewBox="0 0 24 24"><path d="M18 14v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5"/><path d="M11 11V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6"/><path d="M15 11v1"/><path d="M7 11V7a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4"/><path d="M3 14V9a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v5"/></svg>', act: () => { cbs.onHand(); menu.classList.remove('open'); } },
     { label: 'Turn on captions', icon: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>', act: () => { cbs.onCaptions(); menu.classList.remove('open'); } }
   ];
   items.forEach(i => {
     const btn = pw.document.createElement('button'); btn.className='mi'; btn.innerHTML=i.icon+`<span>${i.label}</span>`;
+    if (i.id) btn.id = i.id;
     btn.onclick = (e: any) => { e.stopPropagation(); i.act(); };
     menu.appendChild(btn);
   });
   
   db.onclick = (e: any) => { e.stopPropagation(); menu.classList.toggle('open'); };
   pw.document.body.onclick = () => menu.classList.remove('open');
+
+  const ccDiv = pw.document.createElement('div'); ccDiv.className = 'cc'; ccDiv.style.display = 'none';
+  const rhInd = pw.document.createElement('div'); rhInd.className = 'rh-ind';
+  
+  wrap.appendChild(ccDiv);
+  wrap.appendChild(rhInd);
 
   const sync = () => { const m=lp.isMicrophoneEnabled,c=lp.isCameraEnabled; mb.innerHTML=m?MI:MO; mb.className=`b ${m?'bd':'ba'}`; cb.innerHTML=c?CI:CO; cb.className=`b ${c?'bd':'ba'}`; };
   sync();
@@ -654,6 +674,41 @@ function buildPip(pw: any, lp: any, onLeave: () => void, cbs: any) {
   nav.appendChild(mb); nav.appendChild(cb); nav.appendChild(db); nav.appendChild(lb);
   wrap.appendChild(menu);
   vid.appendChild(nav); wrap.appendChild(vid); pw.document.body.appendChild(wrap);
-  const iv = setInterval(() => { try { sync(); updateVideo(); } catch { clearInterval(iv); } }, 500);
+  const iv = setInterval(() => { 
+    try { 
+      sync(); 
+      updateVideo(); 
+
+      if (stateRefs) {
+        if (stateRefs.subtitlesRef && stateRefs.subtitlesRef.current) {
+          const subs = Array.from(stateRefs.subtitlesRef.current.values()).sort((a:any, b:any) => a.updatedAt - b.updatedAt).slice(-2);
+          if (subs.length > 0) {
+            ccDiv.style.display = 'flex';
+            ccDiv.innerHTML = subs.map((s:any) => `<div class="cc-i"><div class="c-n">${s.name}</div><div class="c-t">${s.text}</div></div>`).join('');
+          } else {
+            ccDiv.style.display = 'none';
+          }
+        }
+        
+        if (stateRefs.handRaisedRef) {
+          const handBtn = pw.document.getElementById('pip-hand-btn');
+          if (handBtn) {
+            handBtn.innerHTML = items[2].icon + `<span>${stateRefs.handRaisedRef.current ? 'Turunkan tangan' : 'Raise hand'}</span>`;
+          }
+        }
+
+        if (stateRefs.raisedHandsRef && stateRefs.raisedHandsRef.current) {
+          const rhMap = stateRefs.raisedHandsRef.current;
+          if (rhMap.size > 0) {
+            rhInd.style.display = 'block';
+            rhInd.innerHTML = `✋ ${Array.from(rhMap.values()).join(', ')} mengangkat tangan`;
+          } else {
+            rhInd.style.display = 'none';
+          }
+        }
+      }
+
+    } catch { clearInterval(iv); } 
+  }, 500);
   pw.addEventListener('pagehide', () => clearInterval(iv));
 }

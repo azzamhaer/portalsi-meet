@@ -7,8 +7,8 @@ import Draggable from 'react-draggable';
 import { Maximize2 } from 'lucide-react';
 import type { ViewMode } from './BottomBar';
 
-export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, onFocusParticipant }: {
-  viewMode: ViewMode; hideSelf: boolean; enhanceLight: boolean;
+export function VideoStage({ viewMode, hideSelf, enhanceLight, mirrorCamera, focusedIdentity, onFocusParticipant }: {
+  viewMode: ViewMode; hideSelf: boolean; enhanceLight: boolean; mirrorCamera?: boolean;
   focusedIdentity: string | null; onFocusParticipant: (id: string | null) => void;
 }) {
   const { localParticipant } = useLocalParticipant();
@@ -67,7 +67,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
         <div className="h-full w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
         </div>
-        {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} />}
+        {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} mirrorCamera={mirrorCamera} />}
       </div>
     );
   }
@@ -109,15 +109,16 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
           ))}
         </div>
       )}
-      {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} />}
+      {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} mirrorCamera={mirrorCamera} />}
     </div>
   );
 }
 
-function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
+function Pip({ trackRef, onClick, mirrorCamera }: { trackRef: any; onClick: () => void; mirrorCamera?: boolean }) {
   const nodeRefDesktop = useRef(null);
   const nodeRefMobile = useRef(null);
   const [mirrored, setMirrored] = useState(false);
+  const isMirrored = mirrorCamera !== undefined ? mirrorCamera !== mirrored : mirrored;
   const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
   const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
   
@@ -125,8 +126,8 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
     <>
       <div className="hidden md:block fixed inset-0 z-40 pointer-events-none pb-[80px]">
         <Draggable bounds="parent" defaultPosition={{x: winW - 250, y: winH - 260}} nodeRef={nodeRefDesktop}>
-          <div ref={nodeRefDesktop} className="absolute top-0 left-0 pip-container w-56 h-36 group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10 hover:shadow-2xl transition-shadow" onClick={onClick} style={{ touchAction: 'none' }}>
-            <div style={{ transform: mirrored ? 'scaleX(-1)' : 'scaleX(1)', width: '100%', height: '100%', transition: 'transform 0.3s ease' }}>
+          <div ref={nodeRefDesktop} className="absolute top-0 left-0 pip-container group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10 hover:shadow-2xl transition-shadow" onClick={onClick} style={{ touchAction: 'none', width: '224px', height: '144px', minWidth: '150px', minHeight: '100px', maxWidth: '400px', maxHeight: '300px', resize: 'both' }}>
+            <div style={{ transform: isMirrored ? 'scaleX(-1)' : 'scaleX(1)', width: '100%', height: '100%', transition: 'transform 0.3s ease' }}>
               <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none" />
             </div>
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
@@ -140,8 +141,8 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
       </div>
       <div className="md:hidden fixed inset-0 z-40 pointer-events-none pb-[80px]">
         <Draggable bounds="parent" defaultPosition={{x: winW - 130, y: winH - 250}} nodeRef={nodeRefMobile}>
-          <div ref={nodeRefMobile} className="absolute top-0 left-0 pip-container w-28 h-40 cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none' }}>
-            <div style={{ transform: mirrored ? 'scaleX(-1)' : 'scaleX(1)', width: '100%', height: '100%', transition: 'transform 0.3s ease' }}>
+          <div ref={nodeRefMobile} className="absolute top-0 left-0 pip-container cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none', width: '112px', height: '160px', minWidth: '80px', minHeight: '120px', maxWidth: '200px', maxHeight: '280px', resize: 'both' }}>
+            <div style={{ transform: isMirrored ? 'scaleX(-1)' : 'scaleX(1)', width: '100%', height: '100%', transition: 'transform 0.3s ease' }}>
               <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none [&>video]:object-cover" />
             </div>
             <button onClick={(e) => { e.stopPropagation(); setMirrored(v => !v); }} className="absolute top-1.5 right-1.5 p-1.5 bg-black/40 rounded-lg text-white pointer-events-auto" title="Flip Horizontal">

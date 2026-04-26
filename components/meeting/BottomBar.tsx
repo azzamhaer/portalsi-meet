@@ -43,7 +43,7 @@ export function BottomBar({
 
   useState(() => { setInterval(() => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), 1000); });
 
-  const copyId = async () => { try { await navigator.clipboard.writeText(roomId); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {} };
+  const copyId = async () => { try { await navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {} };
   const toggle = (p: PanelType) => onPanelChange(activePanel === p ? null : p);
   const closePopups = () => { setShowReactions(false); setShowMobileMore(false); };
 
