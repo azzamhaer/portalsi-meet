@@ -117,23 +117,36 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
 function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
   const nodeRefDesktop = useRef(null);
   const nodeRefMobile = useRef(null);
+  const [mirrored, setMirrored] = useState(false);
+  const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
+  const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
   
   return (
     <>
-      <div className="hidden md:block fixed inset-0 z-40 pointer-events-none">
-        <Draggable bounds="parent" defaultPosition={{x: window.innerWidth - 240, y: window.innerHeight - 160}} nodeRef={nodeRefDesktop}>
-          <div ref={nodeRefDesktop} className="absolute top-0 left-0 pip-container w-56 h-36 group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none' }}>
-            <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none" />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
-              <Maximize2 className="h-5 w-5 text-white drop-shadow" />
+      <div className="hidden md:block fixed inset-0 z-40 pointer-events-none pb-[80px]">
+        <Draggable bounds="parent" defaultPosition={{x: winW - 250, y: winH - 260}} nodeRef={nodeRefDesktop}>
+          <div ref={nodeRefDesktop} className="absolute top-0 left-0 pip-container w-56 h-36 group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10 hover:shadow-2xl transition-shadow" onClick={onClick} style={{ touchAction: 'none' }}>
+            <div style={{ transform: mirrored ? 'scaleX(-1)' : 'scaleX(1)', width: '100%', height: '100%', transition: 'transform 0.3s ease' }}>
+              <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none" />
             </div>
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
+              <Maximize2 className="h-6 w-6 text-white drop-shadow" />
+            </div>
+            <button onClick={(e) => { e.stopPropagation(); setMirrored(v => !v); }} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-black/60 rounded-lg text-white pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity" title="Flip Horizontal">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v18h-6M9 3H3v18h6M17.5 12h-11M11 8.5L7.5 12 11 15.5"/></svg>
+            </button>
           </div>
         </Draggable>
       </div>
       <div className="md:hidden fixed inset-0 z-40 pointer-events-none pb-[80px]">
-        <Draggable bounds="parent" defaultPosition={{x: window.innerWidth - 120, y: window.innerHeight - 250}} nodeRef={nodeRefMobile}>
+        <Draggable bounds="parent" defaultPosition={{x: winW - 130, y: winH - 250}} nodeRef={nodeRefMobile}>
           <div ref={nodeRefMobile} className="absolute top-0 left-0 pip-container w-28 h-40 cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none' }}>
-            <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none [&>video]:object-cover" />
+            <div style={{ transform: mirrored ? 'scaleX(-1)' : 'scaleX(1)', width: '100%', height: '100%', transition: 'transform 0.3s ease' }}>
+              <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none [&>video]:object-cover" />
+            </div>
+            <button onClick={(e) => { e.stopPropagation(); setMirrored(v => !v); }} className="absolute top-1.5 right-1.5 p-1.5 bg-black/40 rounded-lg text-white pointer-events-auto" title="Flip Horizontal">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v18h-6M9 3H3v18h6M17.5 12h-11M11 8.5L7.5 12 11 15.5"/></svg>
+            </button>
           </div>
         </Draggable>
       </div>

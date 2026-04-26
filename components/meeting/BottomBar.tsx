@@ -173,7 +173,7 @@ export function BottomBar({
         {/* CENTER — custom mic/cam/share buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2" onClick={e => e.stopPropagation()}>
           {/* Mic */}
-          <Tooltip text={isMicOn ? 'Matikan Mic' : 'Nyalakan Mic'}>
+          <Tooltip text={isMicOn ? 'Matikan Mic (Ctrl+D)' : 'Nyalakan Mic (Ctrl+D)'}>
             <button onClick={toggleMic}
               className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!isMicOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
               {isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
@@ -181,7 +181,7 @@ export function BottomBar({
           </Tooltip>
 
           {/* Cam */}
-          <Tooltip text={isCamOn ? 'Matikan Kamera' : 'Nyalakan Kamera'}>
+          <Tooltip text={isCamOn ? 'Matikan Kamera (Ctrl+E)' : 'Nyalakan Kamera (Ctrl+E)'}>
             <button onClick={toggleCam}
               className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!isCamOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
               {isCamOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}

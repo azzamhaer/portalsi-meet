@@ -352,8 +352,42 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
     }
   };
 
-  // Escape
-  useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setActivePanel(null); setShowLeaveConfirm(false); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, []);
+  // Escape and Shortcuts
+  useEffect(() => { 
+    const pttOriginalState = { current: false };
+    const h = (e: KeyboardEvent) => { 
+      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      if (e.key === 'Escape') { setActivePanel(null); setShowLeaveConfirm(false); return; } 
+      if (isInput) return;
+      
+      if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled);
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled);
+      }
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        pttOriginalState.current = localParticipant.isMicrophoneEnabled;
+        if (!pttOriginalState.current) localParticipant.setMicrophoneEnabled(true);
+      }
+    }; 
+    const kU = (e: KeyboardEvent) => {
+      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      if (isInput) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!pttOriginalState.current && localParticipant.isMicrophoneEnabled) {
+          localParticipant.setMicrophoneEnabled(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', h); 
+    window.addEventListener('keyup', kU);
+    return () => { window.removeEventListener('keydown', h); window.removeEventListener('keyup', kU); }; 
+  }, [localParticipant]);
 
   // === AUTO PiP ===
   useEffect(() => {
@@ -367,7 +401,15 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
             if ('documentPictureInPicture' in window) {
               const pw = await (window as any).documentPictureInPicture.requestWindow({ width: 340, height: 260 });
               pipRef.current = pw;
-              buildPip(pw, localParticipant, () => { pw.close(); pipRef.current = null; setShowLeaveConfirm(true); });
+              buildPip(pw, localParticipant, 
+                () => { pw.close(); pipRef.current = null; setShowLeaveConfirm(true); },
+                {
+                  onChat: () => { window.focus(); setActivePanel('chat'); pw.close(); },
+                  onCopy: () => { navigator.clipboard.writeText(roomId).catch(()=>{}); },
+                  onHand: toggleHand,
+                  onCaptions: () => setCaptionsOn(v => !v)
+                }
+              );
               pw.addEventListener('pagehide', () => { pipRef.current = null; });
             } else {
               const v = document.querySelector('.lk-participant-tile video') as HTMLVideoElement | null;
@@ -551,15 +593,21 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
 }
 
 // === PiP builder — no room ID, polling sync, leave confirmation ===
-function buildPip(pw: any, lp: any, onLeave: () => void) {
+function buildPip(pw: any, lp: any, onLeave: () => void, cbs: any) {
   const s = pw.document.createElement('style');
-  s.textContent = `*{margin:0;box-sizing:border-box;font-family:system-ui}body{background:#0a0a0f;overflow:hidden}.w{height:100vh;position:relative}.v{height:100%;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;object-fit:cover}.nv{color:rgba(255,255,255,0.2);font-size:13px;text-align:center}.nav{display:flex;gap:8px;padding:10px 16px;justify-content:center;position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);opacity:0;transition:opacity 0.2s}.w:hover .nav{opacity:1}.b{width:40px;height:40px;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s}.bd{background:rgba(255,255,255,0.12);color:#e8eaed}.bd:hover{background:rgba(255,255,255,0.2)}.ba{background:rgba(234,67,53,0.8);color:#fff}.br{background:rgba(234,67,53,0.85);color:#fff}.br:hover{background:#ea4335}svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}`;
+  s.textContent = `*{margin:0;box-sizing:border-box;font-family:system-ui}body{background:#0a0a0f;overflow:hidden}.w{height:100vh;position:relative}.v{height:100%;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;object-fit:cover}.nv{color:rgba(255,255,255,0.2);font-size:13px;text-align:center}.nav{display:flex;gap:8px;padding:10px 16px;justify-content:center;position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);opacity:0;transition:opacity 0.2s}.w:hover .nav{opacity:1}.b{width:40px;height:40px;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;position:relative}.bd{background:rgba(255,255,255,0.12);color:#e8eaed}.bd:hover{background:rgba(255,255,255,0.2)}.ba{background:rgba(234,67,53,0.8);color:#fff}.br{background:rgba(234,67,53,0.85);color:#fff}.br:hover{background:#ea4335}svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .menu{position:absolute;bottom:55px;right:10px;background:#202124;border-radius:12px;padding:8px 0;box-shadow:0 10px 30px rgba(0,0,0,0.5);display:none;flex-direction:column;min-width:220px;transform:translateY(10px);opacity:0;transition:all 0.2s ease;z-index:100}
+  .menu.open{display:flex;transform:translateY(0);opacity:1}
+  .mi{display:flex;align-items:center;gap:12px;padding:10px 16px;color:#e8eaed;background:transparent;border:none;width:100%;text-align:left;cursor:pointer;font-size:14px;transition:background 0.2s}
+  .mi:hover{background:rgba(255,255,255,0.08)}
+  .mi svg{width:16px;height:16px;color:#9aa0a6}`;
   pw.document.head.appendChild(s);
   const MI='<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
   const MO='<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .76-.13 1.5-.35 2.18"/></svg>';
   const CI='<svg viewBox="0 0 24 24"><path d="m16 6 5-3v18l-5-3Z"/><rect x="2" y="4" width="14" height="16" rx="2"/></svg>';
   const CO='<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16 6.12V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10"/><path d="m22 8-5 3"/></svg>';
   const PH='<svg viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 2.59 3.4Z"/></svg>';
+  const DOTS='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>';
 
   const wrap = pw.document.createElement('div'); wrap.className='w';
   const vid = pw.document.createElement('div'); vid.className='v';
@@ -578,13 +626,33 @@ function buildPip(pw: any, lp: any, onLeave: () => void) {
   const nav = pw.document.createElement('div'); nav.className='nav';
   const mb = pw.document.createElement('button');
   const cb = pw.document.createElement('button');
+  const lb = pw.document.createElement('button'); lb.className='b br'; lb.innerHTML=PH;
+  const db = pw.document.createElement('button'); db.className='b bd'; db.innerHTML=DOTS;
+
+  const menu = pw.document.createElement('div'); menu.className='menu';
+  const items = [
+    { label: 'In-call messages', icon: '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', act: () => { cbs.onChat(); menu.classList.remove('open'); } },
+    { label: 'Copy joining info', icon: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>', act: () => { cbs.onCopy(); mb.innerHTML='✓'; setTimeout(sync,1500); menu.classList.remove('open'); } },
+    { label: 'Raise hand', icon: '<svg viewBox="0 0 24 24"><path d="M18 14v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5"/><path d="M11 11V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6"/><path d="M15 11v1"/><path d="M7 11V7a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4"/><path d="M3 14V9a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v5"/></svg>', act: () => { cbs.onHand(); menu.classList.remove('open'); } },
+    { label: 'Turn on captions', icon: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>', act: () => { cbs.onCaptions(); menu.classList.remove('open'); } }
+  ];
+  items.forEach(i => {
+    const btn = pw.document.createElement('button'); btn.className='mi'; btn.innerHTML=i.icon+`<span>${i.label}</span>`;
+    btn.onclick = (e) => { e.stopPropagation(); i.act(); };
+    menu.appendChild(btn);
+  });
+  
+  db.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
+  pw.document.body.onclick = () => menu.classList.remove('open');
+
   const sync = () => { const m=lp.isMicrophoneEnabled,c=lp.isCameraEnabled; mb.innerHTML=m?MI:MO; mb.className=`b ${m?'bd':'ba'}`; cb.innerHTML=c?CI:CO; cb.className=`b ${c?'bd':'ba'}`; };
   sync();
-  mb.onclick = () => { lp.setMicrophoneEnabled(!lp.isMicrophoneEnabled); setTimeout(sync,100); };
-  cb.onclick = () => { lp.setCameraEnabled(!lp.isCameraEnabled); setTimeout(()=>{sync();updateVideo();},300); };
-  const lb = pw.document.createElement('button'); lb.className='b br'; lb.innerHTML=PH;
-  lb.onclick = () => { onLeave(); };
-  nav.appendChild(mb); nav.appendChild(cb); nav.appendChild(lb);
+  mb.onclick = (e) => { e.stopPropagation(); lp.setMicrophoneEnabled(!lp.isMicrophoneEnabled); setTimeout(sync,100); };
+  cb.onclick = (e) => { e.stopPropagation(); lp.setCameraEnabled(!lp.isCameraEnabled); setTimeout(()=>{sync();updateVideo();},300); };
+  lb.onclick = (e) => { e.stopPropagation(); onLeave(); };
+  
+  nav.appendChild(mb); nav.appendChild(cb); nav.appendChild(db); nav.appendChild(lb);
+  wrap.appendChild(menu);
   vid.appendChild(nav); wrap.appendChild(vid); pw.document.body.appendChild(wrap);
   const iv = setInterval(() => { try { sync(); updateVideo(); } catch { clearInterval(iv); } }, 500);
   pw.addEventListener('pagehide', () => clearInterval(iv));

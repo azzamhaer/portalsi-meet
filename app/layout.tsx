@@ -19,6 +19,9 @@ export const metadata: Metadata = {
     type: 'website',
   },
   robots: { index: true, follow: true },
+  icons: {
+    icon: '/logo.png',
+  },
 };
 
 export const viewport: Viewport = {
