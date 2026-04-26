@@ -122,7 +122,7 @@ export function HomeHero() {
                     </div>
                     <h3 className="text-lg font-bold text-gray-900">Rapat Berhasil Dibuat</h3>
                     {createdRoomInfo.scheduledFor && (
-                      <p className="text-sm text-gray-500 mt-1">Dijadwalkan untuk: {new Date(createdRoomInfo.scheduledFor).toLocaleString('id-ID')}</p>
+                      <p className="text-sm text-gray-500 mt-1">Dijadwalkan untuk: {new Date(createdRoomInfo.scheduledFor).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                     )}
                   </div>
                   
