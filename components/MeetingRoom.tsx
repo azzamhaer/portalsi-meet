@@ -99,8 +99,6 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true, allowWhiteboard: false, allowPolls: false });
   const [joinToasts, setJoinToasts] = useState<string[]>([]);
   const [captionsOn, setCaptionsOn] = useState(false);
-  const [mirrorCamera, setMirrorCamera] = useState(false);
-  const [mirroredParticipants, setMirroredParticipants] = useState<Set<string>>(new Set());
   const [handRaised, setHandRaised] = useState(false);
   const [subtitles, setSubtitles] = useState<Map<string, Subtitle>>(new Map());
   const [noiseSuppression, setNoiseSuppression] = useState(false);
@@ -129,14 +127,12 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const subtitlesRef = useRef(subtitles);
   const raisedHandsRef = useRef(raisedHands);
   const captionsOnRef = useRef(captionsOn);
-  const mirrorCameraRef = useRef(mirrorCamera);
 
   useEffect(() => { timerRef.current = timer; adminsRef.current = admins; }, [timer, admins]);
   useEffect(() => { handRaisedRef.current = handRaised; }, [handRaised]);
   useEffect(() => { subtitlesRef.current = subtitles; }, [subtitles]);
   useEffect(() => { raisedHandsRef.current = raisedHands; }, [raisedHands]);
   useEffect(() => { captionsOnRef.current = captionsOn; }, [captionsOn]);
-  useEffect(() => { mirrorCameraRef.current = mirrorCamera; }, [mirrorCamera]);
 
   useEffect(() => {
     if (noiseSuppression !== krisp.isNoiseFilterEnabled) {
@@ -187,7 +183,6 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         else if (d.type === 'hand') { setRaisedHands(p => { const n = new Map(p); d.raised ? n.set(d.identity, d.name) : n.delete(d.identity); return n; }); if (d.raised) addFloat('✋', d.name); }
         else if (d.type === 'transcription') { if (captionsOnRef.current) { setSubtitles(prev => { const next = new Map(prev); next.set(d.identity, { ...d, updatedAt: Date.now() }); return next; }); } }
         else if (d.type === 'permissions') { setPerms(d.perms); }
-        else if (d.type === 'mirror_sync') { setMirroredParticipants(p => { const n = new Set(p); d.mirrored ? n.add(d.identity) : n.delete(d.identity); return n; }); }
         else if (d.type === 'host_action') {
           if (d.action === 'mute_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setMicrophoneEnabled(false);
           if (d.action === 'mute_video_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setCameraEnabled(false);
@@ -206,7 +201,6 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
     };
     const onJoin = (p: any) => {
       setTimeout(() => { if (chatRef.current.length > 0) room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'chat_history', messages: chatRef.current })), { reliable: true, destinationIdentities: [p.identity] }); }, 1000);
-      setTimeout(() => { if (mirrorCameraRef.current) room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'mirror_sync', mirrored: true, identity: localParticipant.identity })), { reliable: true, destinationIdentities: [p.identity] }); }, 1500);
       // Batched join notification
       joinBatch.current.push(p.name || 'Anonim');
       clearTimeout(joinTimer.current);
@@ -232,11 +226,6 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
 
   const addFloat = (emoji: string, name: string) => { const id = Date.now() + Math.random(); setFloats(p => [...p, { id, emoji, text: emoji, name }]); setTimeout(() => setFloats(p => p.filter(f => f.id !== id)), 3500); };
   const pub = useCallback((d: any, dests?: string[]) => room.localParticipant.publishData(enc.current.encode(JSON.stringify(d)), { reliable: true, destinationIdentities: dests }), [room]);
-  
-  useEffect(() => {
-    pub({ type: 'mirror_sync', mirrored: mirrorCamera, identity: localParticipant.identity });
-  }, [mirrorCamera, pub, localParticipant.identity]);
-
   const sendChat = useCallback((text: string, opts?: Partial<ChatMsg>) => { const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); const msg: ChatMsg = { id, text, senderName: localParticipant.name || 'Anonim', senderIdentity: localParticipant.identity, ts: Date.now(), ...opts }; setChatMsgs(p => [...p, msg]); pub({ type: 'chat', action: 'send', ...msg }, msg.isPrivate && msg.targetIdentity ? [msg.targetIdentity] : undefined); }, [pub, localParticipant]);
   const editChat = useCallback((id: string, text: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, text, edited: true, editedAt: ts } : m)); pub({ type: 'chat', action: 'edit', id, text, ts }); }, [pub]);
   const deleteChat = useCallback((id: string) => { const ts = Date.now(); setChatMsgs(p => p.map(m => m.id === id ? { ...m, deleted: true, deletedAt: ts } : m)); pub({ type: 'chat', action: 'delete', id, ts }); }, [pub]);
@@ -533,7 +522,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
 
       <div className="relative flex flex-1 overflow-hidden pb-[80px]">
         <div className="relative flex-1 overflow-hidden">
-          <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight} mirrorCamera={mirrorCamera} mirroredParticipants={mirroredParticipants}
+          <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight}
             focusedIdentity={focusedIdentity} onFocusParticipant={setFocusedIdentity} />
           
           {/* Subtitles Overlay */}
@@ -575,7 +564,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 onDemote={handleDemoteAction}
               />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost || admins.has(localParticipant.identity)} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || admins.has(localParticipant.identity) || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
-              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost || admins.has(localParticipant.identity)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} mirrorCamera={mirrorCamera} onToggleMirrorCamera={() => setMirrorCamera(v => !v)} />}
+              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost || admins.has(localParticipant.identity)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
               {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} allowWhiteboard={perms.allowWhiteboard} />}
             </div>

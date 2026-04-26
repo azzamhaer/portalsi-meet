@@ -4,14 +4,13 @@ import { useState, useEffect } from 'react';
 import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users, Pencil, PenTool, BarChart2 } from 'lucide-react';
 import type { RoomPerms } from '../MeetingRoom';
 
-export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, noiseSuppression, onToggleNoiseSuppression, captionsOn, onToggleCaptions, videoQuality, onVideoQualityChange, mirrorCamera, onToggleMirrorCamera }: {
+export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, noiseSuppression, onToggleNoiseSuppression, captionsOn, onToggleCaptions, videoQuality, onVideoQualityChange }: {
   onClose: () => void; enhanceLight: boolean; onToggleEnhanceLight: () => void;
   isHost?: boolean; perms?: RoomPerms; onPermsChange?: (p: RoomPerms) => void;
   onMuteAll?: () => void; onMuteVideoAll?: () => void;
   noiseSuppression?: boolean; onToggleNoiseSuppression?: () => void;
   captionsOn?: boolean; onToggleCaptions?: () => void;
   videoQuality?: 'highest' | 'balanced' | 'lowest'; onVideoQualityChange?: (q: 'highest' | 'balanced' | 'lowest') => void;
-  mirrorCamera?: boolean; onToggleMirrorCamera?: () => void;
 }) {
   const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] });
 
@@ -89,9 +88,6 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
           )}
           {onToggleCaptions && (
              <Toggle icon={<MessageSquare className="h-4 w-4 text-purple-400" />} title="Live Captions (CC)" desc="Tampilkan teks otomatis" active={!!captionsOn} onToggle={onToggleCaptions} />
-          )}
-          {onToggleMirrorCamera && (
-             <Toggle icon={<Camera className="h-4 w-4 text-blue-400" />} title="Mirror Kamera" desc="Balik kamera secara horizontal" active={!!mirrorCamera} onToggle={onToggleMirrorCamera} />
           )}
         </div>
         <div className="flex items-start gap-2.5 bg-white/[0.03] rounded-xl p-3">
