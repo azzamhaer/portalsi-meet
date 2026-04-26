@@ -8,11 +8,12 @@ import { Users, X, Crown, Search, Mic, MicOff, Video, VideoOff, ScreenShare, Che
 interface WaitingUser { waitingId: string; name: string; ts: number; }
 
 export function ParticipantsPanel({
-  isHost, isSuperAdmin, roomId, onClose, onStopShare, admins, pub, localIdentity
+  isHost, isSuperAdmin, roomId, onClose, onStopShare, admins, pub, localIdentity, onPromote, onDemote
 }: {
   isHost: boolean; isSuperAdmin?: boolean; roomId: string; onClose: () => void;
   onStopShare?: (identity: string) => void;
   admins?: Set<string>; pub?: (d: any) => void; localIdentity?: string;
+  onPromote?: (id: string) => void; onDemote?: (id: string) => void;
 }) {
   const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
@@ -55,12 +56,12 @@ export function ParticipantsPanel({
 
   function handlePromote(identity: string) {
     if (!confirm('Jadikan peserta ini Admin?')) return;
-    pub?.({ type: 'host_action', action: 'promote', target: identity });
+    if (onPromote) onPromote(identity);
   }
 
   function handleDemote(identity: string) {
     if (!confirm('Hapus status Admin dari peserta ini?')) return;
-    pub?.({ type: 'host_action', action: 'demote', target: identity });
+    if (onDemote) onDemote(identity);
   }
 
   const filtered = participants.filter(p => !search || (p.name || '').toLowerCase().includes(search.toLowerCase()));

@@ -35,7 +35,7 @@ export interface Subtitle { id: string; identity: string; name: string; text: st
 
 const baseRoomOptions: RoomOptions = {
   adaptiveStream: true, dynacast: true,
-  publishDefaults: { videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720], videoCodec: 'vp8', simulcast: true, dtx: true, red: true },
+  publishDefaults: { videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720], videoCodec: 'vp8', simulcast: true },
   videoCaptureDefaults: { resolution: VideoPresets.h360.resolution, facingMode: 'user' }, // default to balanced
   audioCaptureDefaults: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
   stopLocalTrackOnUnpublish: true,
@@ -97,7 +97,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const [joinToasts, setJoinToasts] = useState<string[]>([]);
   const [captionsOn, setCaptionsOn] = useState(false);
   const [subtitles, setSubtitles] = useState<Map<string, Subtitle>>(new Map());
-  const [noiseSuppression, setNoiseSuppression] = useState(true);
+  const [noiseSuppression, setNoiseSuppression] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
 
   const [timer, setTimer] = useState<{ endTime: number; duration: number } | null>(null);
@@ -314,6 +314,16 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const muteVideoAll = useCallback(() => { pub({ type: 'host_action', action: 'mute_video_all' }); }, [pub]);
   const stopShare = useCallback((identity: string) => { pub({ type: 'host_action', action: 'stop_share', target: identity }); }, [pub]);
 
+  const handlePromoteAction = useCallback((target: string) => {
+    pub({ type: 'host_action', action: 'promote', target });
+    setAdmins(prev => new Set(prev).add(target));
+  }, [pub]);
+
+  const handleDemoteAction = useCallback((target: string) => {
+    pub({ type: 'host_action', action: 'demote', target });
+    setAdmins(prev => { const n = new Set(prev); n.delete(target); return n; });
+  }, [pub]);
+
   // === RECORDING ===
   const toggleRecord = async () => {
     if (isRecording) {
@@ -498,6 +508,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 admins={admins} 
                 pub={pub} 
                 localIdentity={localParticipant.identity} 
+                onPromote={handlePromoteAction}
+                onDemote={handleDemoteAction}
               />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
               {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
