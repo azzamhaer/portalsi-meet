@@ -20,6 +20,15 @@ export function HomeHero() {
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [createdRoomInfo, setCreatedRoomInfo] = useState<{ id: string, password?: string, url: string, scheduledFor?: number } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (createdRoomInfo) {
+      navigator.clipboard.writeText(createdRoomInfo.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -120,8 +129,10 @@ export function HomeHero() {
                   <div>
                     <label className="hp-label">Link Rapat (Bagikan ini)</label>
                     <div className="flex items-center mt-1">
-                      <input type="text" readOnly value={createdRoomInfo.url} className="hp-input rounded-r-none border-r-0 text-sm font-mono text-gray-600" />
-                      <button type="button" onClick={() => { navigator.clipboard.writeText(createdRoomInfo.url); alert('Link disalin!'); }} className="hp-btn hp-btn-green rounded-l-none px-4 shrink-0 shadow-none h-[42px] sm:h-[46px] border border-dove-green">Copy</button>
+                      <input type="text" readOnly value={createdRoomInfo.url} className="hp-input w-full flex-1 rounded-r-none border-r-0 text-sm font-mono text-gray-600" />
+                      <button type="button" onClick={handleCopy} className="hp-btn hp-btn-green rounded-l-none px-4 shrink-0 shadow-none h-[42px] sm:h-[46px] border border-dove-green min-w-[80px]">
+                        {copied ? 'Disalin!' : 'Copy'}
+                      </button>
                     </div>
                   </div>
                   
