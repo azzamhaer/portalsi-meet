@@ -61,11 +61,16 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
   }, [initialQuality]);
 
   if (!wsUrl) return <ErrScr title="Konfigurasi Bermasalah" msg="NEXT_PUBLIC_LIVEKIT_URL belum diset." onLeave={onLeave} />;
-  if (fatalError) return <ErrScr title="Koneksi Gagal" msg={fatalError} onLeave={onLeave} />;
+  if (fatalError) return <ErrScr title="Koneksi Terputus" msg={fatalError} onLeave={onLeave} />;
   return (
     <LiveKitRoom token={token} serverUrl={wsUrl} connect options={roomOptions}
       video audio data-lk-theme="default"
-      onDisconnected={(r) => { if ([DisconnectReason.SERVER_SHUTDOWN, DisconnectReason.PARTICIPANT_REMOVED, DisconnectReason.ROOM_DELETED].includes(r!)) onLeave(); }}
+      onDisconnected={(r) => {
+        if (r === DisconnectReason.ROOM_DELETED) setFatalError('Rapat ini telah diakhiri oleh Host.');
+        else if (r === DisconnectReason.PARTICIPANT_REMOVED) setFatalError('Anda telah dikeluarkan dari rapat.');
+        else if (r === DisconnectReason.SERVER_SHUTDOWN) setFatalError('Koneksi terputus dari server.');
+        else onLeave();
+      }}
       onError={(e) => setFatalError(e.message)}
       className="theme-meet h-dvh w-dvw overflow-hidden text-white flex flex-col" style={{ background: '#0a0a0f' }}>
       <Shell roomId={roomId} isHost={isHost} password={password} onLeave={onLeave} videoQuality={videoQuality} setVideoQuality={setVideoQuality} />
@@ -99,6 +104,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const [subtitles, setSubtitles] = useState<Map<string, Subtitle>>(new Map());
   const [noiseSuppression, setNoiseSuppression] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
+  const [endMessage, setEndMessage] = useState<{ title: string, msg: string } | null>(null);
 
   const [timer, setTimer] = useState<{ endTime: number; duration: number } | null>(null);
   const [showTimerModal, setShowTimerModal] = useState(false);
@@ -191,13 +197,13 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         } else if (d.type === 'reaction') { addFloat(d.emoji, d.name); }
         else if (d.type === 'hand') { setRaisedHands(p => { const n = new Map(p); d.raised ? n.set(d.identity, d.name) : n.delete(d.identity); return n; }); if (d.raised) addFloat('✋', d.name); }
         else if (d.type === 'transcription') { setSubtitles(prev => { const next = new Map(prev); next.set(d.identity, { ...d, updatedAt: Date.now() }); return next; }); }
-        else if (d.type === 'permissions') { if (!isHost) setPerms(d.perms); }
+        else if (d.type === 'permissions') { setPerms(d.perms); }
         else if (d.type === 'host_action') {
           if (d.action === 'mute_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setMicrophoneEnabled(false);
           if (d.action === 'mute_video_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setCameraEnabled(false);
           if (d.action === 'stop_share' && d.target === localParticipant.identity) { const st = localParticipant.getTrackPublication(Track.Source.ScreenShare); if (st?.track) localParticipant.unpublishTrack(st.track); }
-          if (d.action === 'kick' && d.target === localParticipant.identity) { onLeave(); }
-          if (d.action === 'kick_all' || d.action === 'end_meeting') { onLeave(); }
+          if (d.action === 'kick' && d.target === localParticipant.identity) { setEndMessage({ title: 'Akses Ditolak', msg: 'Anda telah dikeluarkan dari rapat.' }); }
+          if (d.action === 'kick_all' || d.action === 'end_meeting') { setEndMessage({ title: 'Rapat Selesai', msg: 'Rapat ini telah diakhiri oleh Host.' }); }
           if (d.action === 'promote') setAdmins(prev => new Set(prev).add(d.target));
           if (d.action === 'demote') setAdmins(prev => { const n = new Set(prev); n.delete(d.target); return n; });
         }
@@ -434,11 +440,23 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
     try {
       await fetch(`/api/rooms/${roomId}`, { method: 'DELETE' });
     } catch {}
-    onLeave();
+    setEndMessage({ title: 'Rapat Selesai', msg: 'Anda telah mengakhiri rapat ini.' });
   };
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden relative">
+      {/* End Meeting Modal */}
+      {endMessage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <div className="relative glass-panel rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl border border-white/10 animate-scale-in">
+            <h3 className="text-xl font-bold text-white mb-2">{endMessage.title}</h3>
+            <p className="text-white/70 mb-6">{endMessage.msg}</p>
+            <button onClick={() => { room.disconnect(); onLeave(); }} className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-[#8ab4f8] hover:bg-[#8ab4f8]/90 transition-all active:scale-95">Kembali ke Beranda</button>
+          </div>
+        </div>
+      )}
+
       {/* Floating reactions */}
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] pointer-events-none flex flex-col items-center gap-2">
         {floats.map(f => <div key={f.id} className="reaction-float flex flex-col items-center"><span className="text-4xl">{f.emoji}</span><span className="text-xs text-white/70 font-medium bg-black/40 px-2 py-0.5 rounded-full mt-0.5">{f.name}</span></div>)}
@@ -501,7 +519,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
             <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
               {activePanel === 'participants' && <ParticipantsPanel 
                 isHost={isHost || admins.has(localParticipant.identity)} 
-                isSuperAdmin={isHost}
+                isSuperAdmin={isHost || admins.has(localParticipant.identity)}
                 roomId={roomId} 
                 onClose={() => setActivePanel(null)} 
                 onStopShare={stopShare} 
@@ -511,8 +529,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 onPromote={handlePromoteAction}
                 onDemote={handleDemoteAction}
               />}
-              {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
-              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
+              {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost || admins.has(localParticipant.identity)} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || admins.has(localParticipant.identity) || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
+              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost || admins.has(localParticipant.identity)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
               {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} allowWhiteboard={perms.allowWhiteboard} />}
             </div>
