@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants } from '@livekit/components-react';
 import { useKrispNoiseFilter } from '@livekit/components-react/krisp';
 import { BackgroundBlur } from '@livekit/track-processors';
-import { VideoPresets, DisconnectReason, RoomOptions, Track, RoomEvent } from 'livekit-client';
+import { VideoPresets, DisconnectReason, RoomOptions, Track, RoomEvent, LocalVideoTrack } from 'livekit-client';
 import type { MeetingProps, PanelType } from './meeting/types';
 import type { ViewMode } from './meeting/BottomBar';
 import { VideoStage } from './meeting/VideoStage';
@@ -48,15 +48,17 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'lowest' : 'balanced'
   );
 
+  const [initialQuality] = useState(videoQuality);
+
   const roomOptions = useMemo(() => {
     let res = VideoPresets.h360.resolution;
-    if (videoQuality === 'highest') res = VideoPresets.h720.resolution;
-    if (videoQuality === 'lowest') res = VideoPresets.h180.resolution;
+    if (initialQuality === 'highest') res = VideoPresets.h720.resolution;
+    if (initialQuality === 'lowest') res = VideoPresets.h180.resolution;
     return {
       ...baseRoomOptions,
       videoCaptureDefaults: { ...baseRoomOptions.videoCaptureDefaults, resolution: res }
     };
-  }, [videoQuality]);
+  }, [initialQuality]);
 
   if (!wsUrl) return <ErrScr title="Konfigurasi Bermasalah" msg="NEXT_PUBLIC_LIVEKIT_URL belum diset." onLeave={onLeave} />;
   if (fatalError) return <ErrScr title="Koneksi Gagal" msg={fatalError} onLeave={onLeave} />;
@@ -87,7 +89,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const [floats, setFloats] = useState<FloatingNotif[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [virtualBg, setVirtualBg] = useState<string>('none');
-  const [bgProcessor, setBgProcessor] = useState<any>(null);
+  const bgProcessorRef = useRef<any>(null);
+  const appliedBgRef = useRef<{ trackId: string, bg: string }>({ trackId: '', bg: '' });
   const [unreadCount, setUnreadCount] = useState(0);
   const [focusedIdentity, setFocusedIdentity] = useState<string | null>(null);
   const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true, allowWhiteboard: false, watermarkOn: false, allowPolls: false });
@@ -131,18 +134,46 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
     const applyBg = async () => {
       const track = localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
       if (!track) return;
+      
+      const trackId = track.mediaStreamTrack?.id || track.sid || '';
+      
+      if (appliedBgRef.current.trackId === trackId && appliedBgRef.current.bg === virtualBg) return;
+
       try {
         if (virtualBg === 'blur') {
-          let proc = bgProcessor;
-          if (!proc) { proc = BackgroundBlur(10); setBgProcessor(proc); }
-          await track.setProcessor(proc);
+          if (!bgProcessorRef.current) { bgProcessorRef.current = BackgroundBlur(10); }
+          await track.setProcessor(bgProcessorRef.current);
         } else {
           await track.setProcessor(undefined as any);
         }
+        appliedBgRef.current = { trackId, bg: virtualBg };
       } catch (e) { console.error("BG Error:", e); }
     };
     applyBg();
-  }, [virtualBg, localParticipant, bgProcessor]);
+  }, [virtualBg, localParticipant]);
+
+  // Handle Video Quality Change dynamically
+  useEffect(() => {
+    const updateQuality = async () => {
+      const trackPub = localParticipant.getTrackPublication(Track.Source.Camera);
+      if (trackPub && trackPub.track) {
+        let res = VideoPresets.h360.resolution;
+        if (videoQuality === 'highest') res = VideoPresets.h720.resolution;
+        if (videoQuality === 'lowest') res = VideoPresets.h180.resolution;
+        
+        try {
+          if (trackPub.track instanceof LocalVideoTrack) {
+            await trackPub.track.restartTrack({ resolution: res });
+          } else {
+            await (trackPub.track as any).restartTrack?.({ resolution: res });
+          }
+        } catch (e) {
+          console.error("Failed to restart track with new quality", e);
+        }
+      }
+    };
+    updateQuality();
+  }, [videoQuality, localParticipant]);
 
   // === UNIFIED DATA HANDLER ===
   useEffect(() => {
