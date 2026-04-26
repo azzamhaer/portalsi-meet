@@ -47,6 +47,7 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
   const [videoQuality, setVideoQuality] = useState<'highest' | 'balanced' | 'lowest'>(
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'lowest' : 'balanced'
   );
+  const manualDisconnectRef = useRef(false);
 
   const [initialQuality] = useState(videoQuality);
 
@@ -66,6 +67,7 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
     <LiveKitRoom token={token} serverUrl={wsUrl} connect options={roomOptions}
       video audio data-lk-theme="default"
       onDisconnected={(r) => {
+        if (manualDisconnectRef.current) return;
         if (r === DisconnectReason.ROOM_DELETED) setFatalError('Rapat ini telah diakhiri oleh Host.');
         else if (r === DisconnectReason.PARTICIPANT_REMOVED) setFatalError('Anda telah dikeluarkan dari rapat.');
         else if (r === DisconnectReason.SERVER_SHUTDOWN) setFatalError('Koneksi terputus dari server.');
@@ -73,7 +75,7 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
       }}
       onError={(e) => setFatalError(e.message)}
       className="theme-meet h-dvh w-dvw overflow-hidden text-white flex flex-col" style={{ background: '#0a0a0f' }}>
-      <Shell roomId={roomId} isHost={isHost} password={password} onLeave={onLeave} videoQuality={videoQuality} setVideoQuality={setVideoQuality} />
+      <Shell roomId={roomId} isHost={isHost} password={password} onLeave={onLeave} videoQuality={videoQuality} setVideoQuality={setVideoQuality} onManualDisconnect={() => manualDisconnectRef.current = true} />
       <RoomAudioRenderer /><ConnectionStateToast />
     </LiveKitRoom>
   );
@@ -82,7 +84,7 @@ function ErrScr({ title, msg, onLeave }: { title: string; msg: string; onLeave: 
   return <main className="theme-comic min-h-dvh flex items-center justify-center p-4"><div className="card max-w-md text-center"><h2 className="text-xl font-bold text-red-500">{title}</h2><p className="mt-2 text-ink-300">{msg}</p><button className="btn-primary mt-6 w-full" onClick={onLeave}>Kembali</button></div></main>;
 }
 
-function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQuality }: { roomId: string; isHost: boolean; password?: string; onLeave: () => void; videoQuality: 'highest'|'balanced'|'lowest'; setVideoQuality: (q: 'highest'|'balanced'|'lowest')=>void; }) {
+function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQuality, onManualDisconnect }: { roomId: string; isHost: boolean; password?: string; onLeave: () => void; videoQuality: 'highest'|'balanced'|'lowest'; setVideoQuality: (q: 'highest'|'balanced'|'lowest')=>void; onManualDisconnect: () => void; }) {
   const [activePanel, setActivePanel] = useState<PanelType>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('standard');
   const [hideSelf, setHideSelf] = useState(false);
@@ -177,8 +179,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
           if (d.action === 'mute_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setMicrophoneEnabled(false);
           if (d.action === 'mute_video_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setCameraEnabled(false);
           if (d.action === 'stop_share' && d.target === localParticipant.identity) { const st = localParticipant.getTrackPublication(Track.Source.ScreenShare); if (st?.track) localParticipant.unpublishTrack(st.track); }
-          if (d.action === 'kick' && d.target === localParticipant.identity) { setEndMessage({ title: 'Akses Ditolak', msg: 'Anda telah dikeluarkan dari rapat.' }); }
-          if (d.action === 'kick_all' || d.action === 'end_meeting') { setEndMessage({ title: 'Rapat Selesai', msg: 'Rapat ini telah diakhiri oleh Host.' }); }
+          if (d.action === 'kick' && d.target === localParticipant.identity) { onManualDisconnect(); room.disconnect(); setEndMessage({ title: 'Akses Ditolak', msg: 'Anda telah dikeluarkan dari rapat.' }); }
+          if (d.action === 'kick_all' || d.action === 'end_meeting') { onManualDisconnect(); room.disconnect(); setEndMessage({ title: 'Rapat Selesai', msg: 'Rapat ini telah diakhiri oleh Host.' }); }
           if (d.action === 'promote') setAdmins(prev => new Set(prev).add(d.target));
           if (d.action === 'demote') setAdmins(prev => { const n = new Set(prev); n.delete(d.target); return n; });
         }
@@ -413,6 +415,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const handleEndForEveryone = async () => {
     setShowLeaveConfirm(false);
     pub({ type: 'host_action', action: 'end_meeting' });
+    onManualDisconnect();
+    setTimeout(() => room.disconnect(), 150);
     try {
       await fetch(`/api/rooms/${roomId}`, { method: 'DELETE' });
     } catch {}
@@ -428,7 +432,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
           <div className="relative glass-panel rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl border border-white/10 animate-scale-in">
             <h3 className="text-xl font-bold text-white mb-2">{endMessage.title}</h3>
             <p className="text-white/70 mb-6">{endMessage.msg}</p>
-            <button onClick={() => { room.disconnect(); onLeave(); }} className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-[#8ab4f8] hover:bg-[#8ab4f8]/90 transition-all active:scale-95">Kembali ke Beranda</button>
+            <button onClick={() => { onLeave(); }} className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-[#8ab4f8] hover:bg-[#8ab4f8]/90 transition-all active:scale-95">Kembali ke Beranda</button>
           </div>
         </div>
       )}
