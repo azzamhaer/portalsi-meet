@@ -15,7 +15,6 @@ import { InfoPanel } from './meeting/InfoPanel';
 import { SettingsPanel } from './meeting/SettingsPanel';
 import { ViewPanel } from './meeting/ViewPanel';
 import { WhiteboardPanel } from './meeting/WhiteboardPanel';
-import { DynamicWatermark } from './meeting/DynamicWatermark';
 import { TimerOverlay } from './meeting/TimerOverlay';
 import { TimerModal } from './meeting/TimerModal';
 
@@ -30,7 +29,7 @@ export interface PollOption { id: string; text: string; votes: number; }
 export interface Poll { id: string; question: string; options: PollOption[]; createdBy: string; voters: Record<string, string>; } // voterIdentity -> optionId
 
 export interface FloatingNotif { id: number; emoji?: string; text: string; name: string; }
-export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; allowWhiteboard: boolean; watermarkOn: boolean; allowPolls: boolean; }
+export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; allowWhiteboard: boolean; allowPolls: boolean; }
 export interface Subtitle { id: string; identity: string; name: string; text: string; updatedAt: number; }
 
 const baseRoomOptions: RoomOptions = {
@@ -97,7 +96,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const [isRecording, setIsRecording] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [focusedIdentity, setFocusedIdentity] = useState<string | null>(null);
-  const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true, allowWhiteboard: false, watermarkOn: false, allowPolls: false });
+  const [perms, setPerms] = useState<RoomPerms>({ allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true, allowWhiteboard: false, allowPolls: false });
   const [joinToasts, setJoinToasts] = useState<string[]>([]);
   const [captionsOn, setCaptionsOn] = useState(false);
   const [subtitles, setSubtitles] = useState<Map<string, Subtitle>>(new Map());
@@ -476,11 +475,6 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 </div>
               ))}
             </div>
-          )}
-
-          {/* Dynamic Watermark */}
-          {perms.watermarkOn && (
-            <DynamicWatermark name={localParticipant.name || 'Peserta'} roomId={roomId} />
           )}
         </div>
 

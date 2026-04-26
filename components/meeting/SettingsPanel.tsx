@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users, Pencil, PenTool, EyeOff, BarChart2 } from 'lucide-react';
+import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users, Pencil, PenTool, BarChart2 } from 'lucide-react';
 import type { RoomPerms } from '../MeetingRoom';
 
 export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, noiseSuppression, onToggleNoiseSuppression, captionsOn, onToggleCaptions, videoQuality, onVideoQualityChange }: {
@@ -47,10 +47,6 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
             <Toggle icon={<Pencil className="h-4 w-4 text-cyan-400" />} title="Izinkan Ganti Nama" desc="Peserta bisa mengubah nama mereka" active={perms.allowRename} onToggle={() => onPermsChange({ ...perms, allowRename: !perms.allowRename })} />
             <Toggle icon={<PenTool className="h-4 w-4 text-pink-400" />} title="Whiteboard Interaktif" desc="Aktifkan kanvas kolaborasi" active={perms.allowWhiteboard} onToggle={() => onPermsChange({ ...perms, allowWhiteboard: !perms.allowWhiteboard })} />
             <Toggle icon={<BarChart2 className="h-4 w-4 text-[#8ab4f8]" />} title="Izinkan Buat Polling" desc="Semua orang bisa membuat polling" active={perms.allowPolls} onToggle={() => onPermsChange({ ...perms, allowPolls: !perms.allowPolls })} />
-
-            <hr className="border-white/[0.06]" />
-
-            <Toggle icon={<EyeOff className="h-4 w-4 text-blue-400" />} title="Dynamic Watermark" desc="Tampilkan identitas peserta di video" active={perms.watermarkOn} onToggle={() => onPermsChange({ ...perms, watermarkOn: !perms.watermarkOn })} />
 
             <hr className="border-white/[0.06]" />
 
