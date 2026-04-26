@@ -130,7 +130,7 @@ export function HomeHero() {
                     <label className="hp-label">Link Rapat (Bagikan ini)</label>
                     <div className="flex items-center mt-1">
                       <input type="text" readOnly value={createdRoomInfo.url} className="hp-input w-full flex-1 rounded-r-none border-r-0 text-sm font-mono text-gray-600" />
-                      <button type="button" onClick={handleCopy} className="hp-btn hp-btn-green rounded-l-none px-4 shrink-0 shadow-none h-[42px] sm:h-[46px] border border-dove-green min-w-[80px]">
+                      <button type="button" onClick={handleCopy} className="hp-btn hp-btn-green !w-auto !mt-0 rounded-l-none px-4 shrink-0 shadow-none h-[42px] sm:h-[46px] border border-dove-green min-w-[80px]">
                         {copied ? 'Disalin!' : 'Copy'}
                       </button>
                     </div>
