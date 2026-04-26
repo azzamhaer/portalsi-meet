@@ -33,10 +33,10 @@ export interface FloatingNotif { id: number; emoji?: string; text: string; name:
 export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; allowWhiteboard: boolean; watermarkOn: boolean; allowPolls: boolean; }
 export interface Subtitle { id: string; identity: string; name: string; text: string; updatedAt: number; }
 
-const roomOptions: RoomOptions = {
+const baseRoomOptions: RoomOptions = {
   adaptiveStream: true, dynacast: true,
   publishDefaults: { videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720], videoCodec: 'vp8', simulcast: true, dtx: true, red: true },
-  videoCaptureDefaults: { resolution: VideoPresets.h720.resolution, facingMode: 'user' },
+  videoCaptureDefaults: { resolution: VideoPresets.h360.resolution, facingMode: 'user' }, // default to balanced
   audioCaptureDefaults: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
   stopLocalTrackOnUnpublish: true,
   reconnectPolicy: { nextRetryDelayInMs: (ctx) => Math.min(1000 * Math.pow(2, ctx.retryCount), 10000) },
@@ -44,6 +44,20 @@ const roomOptions: RoomOptions = {
 
 export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLeave }: MeetingProps) {
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const [videoQuality, setVideoQuality] = useState<'highest' | 'balanced' | 'lowest'>(
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'lowest' : 'balanced'
+  );
+
+  const roomOptions = React.useMemo(() => {
+    let res = VideoPresets.h360.resolution;
+    if (videoQuality === 'highest') res = VideoPresets.h720.resolution;
+    if (videoQuality === 'lowest') res = VideoPresets.h180.resolution;
+    return {
+      ...baseRoomOptions,
+      videoCaptureDefaults: { ...baseRoomOptions.videoCaptureDefaults, resolution: res }
+    };
+  }, [videoQuality]);
+
   if (!wsUrl) return <ErrScr title="Konfigurasi Bermasalah" msg="NEXT_PUBLIC_LIVEKIT_URL belum diset." onLeave={onLeave} />;
   if (fatalError) return <ErrScr title="Koneksi Gagal" msg={fatalError} onLeave={onLeave} />;
   return (
@@ -52,7 +66,7 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
       onDisconnected={(r) => { if ([DisconnectReason.SERVER_SHUTDOWN, DisconnectReason.PARTICIPANT_REMOVED, DisconnectReason.ROOM_DELETED].includes(r!)) onLeave(); }}
       onError={(e) => setFatalError(e.message)}
       className="theme-meet h-dvh w-dvw overflow-hidden text-white flex flex-col" style={{ background: '#0a0a0f' }}>
-      <Shell roomId={roomId} isHost={isHost} password={password} onLeave={onLeave} />
+      <Shell roomId={roomId} isHost={isHost} password={password} onLeave={onLeave} videoQuality={videoQuality} setVideoQuality={setVideoQuality} />
       <RoomAudioRenderer /><ConnectionStateToast />
     </LiveKitRoom>
   );
@@ -61,7 +75,7 @@ function ErrScr({ title, msg, onLeave }: { title: string; msg: string; onLeave: 
   return <main className="theme-comic min-h-dvh flex items-center justify-center p-4"><div className="card max-w-md text-center"><h2 className="text-xl font-bold text-red-500">{title}</h2><p className="mt-2 text-ink-300">{msg}</p><button className="btn-primary mt-6 w-full" onClick={onLeave}>Kembali</button></div></main>;
 }
 
-function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: boolean; password?: string; onLeave: () => void }) {
+function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQuality }: { roomId: string; isHost: boolean; password?: string; onLeave: () => void; videoQuality: 'highest'|'balanced'|'lowest'; setVideoQuality: (q: 'highest'|'balanced'|'lowest')=>void; }) {
   const [activePanel, setActivePanel] = useState<PanelType>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('standard');
   const [hideSelf, setHideSelf] = useState(false);
@@ -152,6 +166,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
           if (d.action === 'mute_video_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setCameraEnabled(false);
           if (d.action === 'stop_share' && d.target === localParticipant.identity) { const st = localParticipant.getTrackPublication(Track.Source.ScreenShare); if (st?.track) localParticipant.unpublishTrack(st.track); }
           if (d.action === 'kick' && d.target === localParticipant.identity) { onLeave(); }
+          if (d.action === 'kick_all' || d.action === 'end_meeting') { onLeave(); }
           if (d.action === 'promote') setAdmins(prev => new Set(prev).add(d.target));
           if (d.action === 'demote') setAdmins(prev => { const n = new Set(prev); n.delete(d.target); return n; });
         }
@@ -363,6 +378,24 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
     setTimer(null);
   };
 
+  const handleLeaveAction = () => {
+    if (admins.has(localParticipant.identity) && admins.size === 1) {
+      const others = Array.from(room.remoteParticipants.values());
+      if (others.length > 0) {
+        pub({ type: 'host_action', action: 'promote', target: others[0].identity });
+      }
+    }
+    onLeave();
+  };
+
+  const handleEndForEveryone = async () => {
+    pub({ type: 'host_action', action: 'end_meeting' });
+    try {
+      await fetch(`/api/rooms/${roomId}`, { method: 'DELETE' });
+    } catch {}
+    onLeave();
+  };
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden relative">
       {/* Floating reactions */}
@@ -436,7 +469,7 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
                 localIdentity={localParticipant.identity} 
               />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
-              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} />}
+              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} virtualBg={virtualBg} onVirtualBgChange={setVirtualBg} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
               {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} allowWhiteboard={perms.allowWhiteboard} />}
             </div>
@@ -466,9 +499,14 @@ function Shell({ roomId, isHost, password, onLeave }: { roomId: string; isHost: 
             </div>
             <h3 className="text-lg font-semibold text-white/90 mb-1">Tinggalkan Meeting?</h3>
             <p className="text-sm text-white/40 mb-6">Anda yakin ingin meninggalkan meeting ini?</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowLeaveConfirm(false)} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white/80 bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.06] transition-all active:scale-95">Tetap di Meeting</button>
-              <button onClick={onLeave} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-400 transition-all active:scale-95 shadow-[0_0_20px_rgba(234,67,53,0.3)]">Tinggalkan</button>
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-3">
+                <button onClick={() => setShowLeaveConfirm(false)} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white/80 bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.06] transition-all active:scale-95">Batal</button>
+                <button onClick={handleLeaveAction} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-400 transition-all active:scale-95 shadow-[0_0_20px_rgba(234,67,53,0.3)]">Tinggalkan</button>
+              </div>
+              {(isHost || admins.has(localParticipant.identity)) && (
+                <button onClick={handleEndForEveryone} className="w-full py-3 rounded-xl text-sm font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all active:scale-95">Akhiri untuk Semua</button>
+              )}
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRoom } from '@/lib/rooms';
+import { getRoom, deleteRoom } from '@/lib/rooms';
 import { normalizeRoomId } from '@/lib/room-id';
 
 export const dynamic = 'force-dynamic';
@@ -20,4 +20,13 @@ export async function GET(
     lobby: room.lobby,
     hostName: room.hostName,
   });
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: { id: string } }
+) {
+  const id = normalizeRoomId(params.id);
+  await deleteRoom(id);
+  return NextResponse.json({ success: true });
 }

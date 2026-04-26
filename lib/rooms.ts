@@ -18,6 +18,7 @@ export interface RoomRecord {
   createdAt: number;
   hostName: string;
   permissions: RoomPermissions;
+  scheduledFor?: number;
 }
 
 export interface WaitingUser {
@@ -34,12 +35,12 @@ function waitKey(id: string) { return `waiting:${id}`; }
 function waitStatusKey(waitingId: string) { return `wstatus:${waitingId}`; }
 
 export async function createRoom(opts: {
-  id: string; hostIdentity: string; hostName: string; password?: string; lobby?: boolean;
+  id: string; hostIdentity: string; hostName: string; password?: string; lobby?: boolean; scheduledFor?: number;
 }): Promise<RoomRecord> {
   const record: RoomRecord = {
     id: opts.id, hostIdentity: opts.hostIdentity, hostName: opts.hostName,
     passwordHash: opts.password ? await bcrypt.hash(opts.password, 10) : undefined,
-    lobby: opts.lobby ?? false, createdAt: Date.now(),
+    lobby: opts.lobby ?? false, createdAt: Date.now(), scheduledFor: opts.scheduledFor,
     permissions: { allowChat: true, allowScreenShare: true, allowJoin: true, allowReactions: true, lobbyMode: false, allowRename: true },
   };
   await redis.setex(roomKey(opts.id), ROOM_TTL, JSON.stringify(record));

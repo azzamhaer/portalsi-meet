@@ -15,21 +15,45 @@ export function HomeHero() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
+  
+  const [createMode, setCreateMode] = useState<'instant' | 'later' | 'schedule'>('instant');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [createdRoomInfo, setCreatedRoomInfo] = useState<{ id: string, password?: string, url: string, scheduledFor?: number } | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!name.trim()) { setError('Nama tidak boleh kosong.'); return; }
+    
+    let scheduledFor: number | undefined;
+    if (createMode === 'schedule') {
+      if (!scheduledDate || !scheduledTime) { setError('Pilih tanggal dan waktu rapat.'); return; }
+      scheduledFor = new Date(`${scheduledDate}T${scheduledTime}`).getTime();
+      if (scheduledFor < Date.now()) { setError('Waktu rapat tidak boleh di masa lalu.'); return; }
+    }
+
     setLoading(true);
     try {
       const res = await fetch('/api/rooms', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostName: name.trim(), password: usePassword && password ? password : undefined, lobby: false }),
+        body: JSON.stringify({ hostName: name.trim(), password: usePassword && password ? password : undefined, lobby: false, scheduledFor }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal membuat ruang.');
       sessionStorage.setItem(`lk-${data.roomId}`, JSON.stringify({ token: data.token, wsUrl: data.wsUrl, name: name.trim(), isHost: true, password: usePassword && password ? password : undefined }));
-      router.push(`/room/${data.roomId}`);
+      
+      if (createMode === 'instant') {
+        router.push(`/room/${data.roomId}`);
+      } else {
+        setLoading(false);
+        setCreatedRoomInfo({ 
+          id: data.roomId, 
+          password: usePassword && password ? password : undefined, 
+          url: window.location.origin + `/room/${data.roomId}`,
+          scheduledFor
+        });
+      }
     } catch (err: any) { setError(err.message); setLoading(false); }
   }
 
@@ -81,25 +105,89 @@ export function HomeHero() {
             </div>
 
             {mode === 'create' ? (
-              <form onSubmit={handleCreate} className="space-y-4" autoComplete="off">
-                <Field label="Nama Anda" value={name} onChange={setName} placeholder="Masukkan nama" maxLength={40} autoFocus />
+              createdRoomInfo ? (
+                <div className="space-y-4 animate-scale-in">
+                  <div className="text-center mb-4">
+                    <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                      <Shield className="h-6 w-6 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900">Rapat Berhasil Dibuat</h3>
+                    {createdRoomInfo.scheduledFor && (
+                      <p className="text-sm text-gray-500 mt-1">Dijadwalkan untuk: {new Date(createdRoomInfo.scheduledFor).toLocaleString('id-ID')}</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="hp-label">Link Rapat (Bagikan ini)</label>
+                    <div className="flex items-center mt-1">
+                      <input type="text" readOnly value={createdRoomInfo.url} className="hp-input rounded-r-none border-r-0 text-sm font-mono text-gray-600" />
+                      <button type="button" onClick={() => { navigator.clipboard.writeText(createdRoomInfo.url); alert('Link disalin!'); }} className="hp-btn hp-btn-green rounded-l-none px-4 shrink-0 shadow-none h-[42px] sm:h-[46px] border border-dove-green">Copy</button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase">Room ID</p>
+                      <p className="text-sm font-bold text-gray-800 font-mono mt-0.5">{createdRoomInfo.id}</p>
+                    </div>
+                    {createdRoomInfo.password && (
+                      <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <p className="text-[10px] text-gray-400 font-semibold uppercase">Password</p>
+                        <p className="text-sm font-bold text-gray-800 font-mono mt-0.5">{createdRoomInfo.password}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="pt-4 flex gap-3">
+                    <button type="button" onClick={() => setCreatedRoomInfo(null)} className="flex-1 py-3 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">Buat Lainnya</button>
+                    {!createdRoomInfo.scheduledFor && (
+                      <button type="button" onClick={() => router.push(`/room/${createdRoomInfo.id}`)} className="flex-1 py-3 text-sm font-semibold text-white bg-dove-green hover:bg-dove-green/90 rounded-xl shadow-[0_4px_14px_rgba(16,185,129,0.3)] transition-all">Mulai Sekarang</button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleCreate} className="space-y-4" autoComplete="off">
+                  <div className="flex bg-gray-50 p-1 rounded-xl mb-4 border border-gray-100">
+                    <button type="button" onClick={() => setCreateMode('instant')} className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${createMode === 'instant' ? 'bg-white shadow border border-gray-200 text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>Instan</button>
+                    <button type="button" onClick={() => setCreateMode('later')} className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${createMode === 'later' ? 'bg-white shadow border border-gray-200 text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>Buat Nanti</button>
+                    <button type="button" onClick={() => setCreateMode('schedule')} className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${createMode === 'schedule' ? 'bg-white shadow border border-gray-200 text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>Jadwalkan</button>
+                  </div>
 
-                <label className="flex items-center gap-3 cursor-pointer select-none py-2">
-                  <input type="checkbox" checked={usePassword} onChange={e => setUsePassword(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-dove-green focus:ring-dove-green/30 cursor-pointer" />
-                  <span className="text-sm text-gray-600">Buat password room</span>
-                </label>
+                  <Field label="Nama Anda (Host)" value={name} onChange={setName} placeholder="Masukkan nama" maxLength={40} autoFocus />
 
-                {usePassword && (
-                  <PwField value={password} onChange={setPassword} showPw={showPw} toggle={() => setShowPw(v => !v)} placeholder="Buat password..." />
-                )}
+                  {createMode === 'schedule' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="hp-label">Tanggal</label>
+                        <input type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} className="hp-input text-sm" required={createMode === 'schedule'} />
+                      </div>
+                      <div>
+                        <label className="hp-label">Waktu</label>
+                        <input type="time" value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} className="hp-input text-sm" required={createMode === 'schedule'} />
+                      </div>
+                    </div>
+                  )}
 
-                {error && <ErrBox text={error} />}
+                  <label className="flex items-center gap-3 cursor-pointer select-none py-2">
+                    <input type="checkbox" checked={usePassword} onChange={e => setUsePassword(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-dove-green focus:ring-dove-green/30 cursor-pointer" />
+                    <span className="text-sm text-gray-600">Buat password room</span>
+                  </label>
 
-                <button type="submit" disabled={loading} className="hp-btn hp-btn-green">
-                  {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Membuat...</> : <>Mulai Meeting Baru <ArrowRight className="h-4 w-4" /></>}
-                </button>
-              </form>
+                  {usePassword && (
+                    <PwField value={password} onChange={setPassword} showPw={showPw} toggle={() => setShowPw(v => !v)} placeholder="Buat password..." />
+                  )}
+
+                  {error && <ErrBox text={error} />}
+
+                  <button type="submit" disabled={loading} className="hp-btn hp-btn-green mt-2">
+                    {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> {createMode === 'instant' ? 'Memulai...' : 'Membuat...'}</> : <>
+                      {createMode === 'instant' ? 'Mulai Rapat Instan' : (createMode === 'later' ? 'Dapatkan Info Rapat' : 'Jadwalkan Rapat')} 
+                      <ArrowRight className="h-4 w-4" />
+                    </>}
+                  </button>
+                </form>
+              )
             ) : (
               <form onSubmit={handleJoin} className="space-y-4" autoComplete="off">
                 <Field label="Nama Anda" value={name} onChange={setName} placeholder="Masukkan nama" maxLength={40} autoFocus />

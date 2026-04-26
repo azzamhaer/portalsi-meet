@@ -45,6 +45,15 @@ export async function POST(
     );
   }
 
+  // Check if meeting is scheduled for the future
+  if (room.scheduledFor && Date.now() < room.scheduledFor) {
+    const timeStr = new Date(room.scheduledFor).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    return NextResponse.json(
+      { error: `Rapat baru dimulai jam ${timeStr}. Silakan refresh atau kembali.` },
+      { status: 403 }
+    );
+  }
+
   let body: any = {};
   try {
     body = await req.json();

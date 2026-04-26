@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { X, Monitor, Sun, Volume2, Mic, Camera, AlertCircle, Shield, MessageSquare, ScreenShare, Smile, VolumeX, VideoOff, DoorOpen, Users, Pencil, PenTool, EyeOff, BarChart2 } from 'lucide-react';
 import type { RoomPerms } from '../MeetingRoom';
 
-export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, virtualBg, onVirtualBgChange, noiseSuppression, onToggleNoiseSuppression, captionsOn, onToggleCaptions }: {
+export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isHost, perms, onPermsChange, onMuteAll, onMuteVideoAll, virtualBg, onVirtualBgChange, noiseSuppression, onToggleNoiseSuppression, captionsOn, onToggleCaptions, videoQuality, onVideoQualityChange }: {
   onClose: () => void; enhanceLight: boolean; onToggleEnhanceLight: () => void;
   isHost?: boolean; perms?: RoomPerms; onPermsChange?: (p: RoomPerms) => void;
   onMuteAll?: () => void; onMuteVideoAll?: () => void;
   virtualBg?: string; onVirtualBgChange?: (bg: string) => void;
   noiseSuppression?: boolean; onToggleNoiseSuppression?: () => void;
   captionsOn?: boolean; onToggleCaptions?: () => void;
+  videoQuality?: 'highest' | 'balanced' | 'lowest'; onVideoQualityChange?: (q: 'highest' | 'balanced' | 'lowest') => void;
 }) {
   const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] });
 
@@ -71,6 +72,18 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
         <DeviceSelect icon={<Camera className="h-3.5 w-3.5" />} label="Kamera" devices={devices.video} fallback="Default Camera" />
         <DeviceSelect icon={<Mic className="h-3.5 w-3.5" />} label="Mikrofon" devices={devices.audio} fallback="Default Microphone" />
         <DeviceSelect icon={<Volume2 className="h-3.5 w-3.5" />} label="Speaker" devices={[]} fallback="Default Speaker" />
+        
+        {onVideoQualityChange && (
+          <div className="space-y-2 mt-4">
+            <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-1.5"><Camera className="h-3.5 w-3.5"/> Kualitas Video / Performa</label>
+            <select value={videoQuality || 'balanced'} onChange={e => onVideoQualityChange(e.target.value as 'highest' | 'balanced' | 'lowest')} className="w-full bg-[#121218] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 outline-none focus:border-[#8ab4f8]/40 appearance-none cursor-pointer">
+              <option value="highest">Highest (HD, Lebih panas & boros baterai)</option>
+              <option value="balanced">Balanced (Optimal)</option>
+              <option value="lowest">Lowest (Hemat baterai & internet, tidak panas)</option>
+            </select>
+            <p className="text-[10px] text-white/30 leading-relaxed px-1">Sesuaikan jika HP terasa panas atau koneksi lambat.</p>
+          </div>
+        )}
         <hr className="border-white/[0.06]" />
         <div className="space-y-4">
           <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider">Efek Visual</h3>
