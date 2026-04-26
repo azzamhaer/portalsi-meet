@@ -127,11 +127,13 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const handRaisedRef = useRef(handRaised);
   const subtitlesRef = useRef(subtitles);
   const raisedHandsRef = useRef(raisedHands);
+  const captionsOnRef = useRef(captionsOn);
 
   useEffect(() => { timerRef.current = timer; adminsRef.current = admins; }, [timer, admins]);
   useEffect(() => { handRaisedRef.current = handRaised; }, [handRaised]);
   useEffect(() => { subtitlesRef.current = subtitles; }, [subtitles]);
   useEffect(() => { raisedHandsRef.current = raisedHands; }, [raisedHands]);
+  useEffect(() => { captionsOnRef.current = captionsOn; }, [captionsOn]);
 
   useEffect(() => {
     if (noiseSuppression !== krisp.isNoiseFilterEnabled) {
@@ -180,7 +182,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
           setChatMsgs(prev => { const ids = new Set(prev.map(m => m.id)); return [...prev, ...(d.messages as ChatMsg[]).filter(m => !ids.has(m.id))].sort((a, b) => a.ts - b.ts); });
         } else if (d.type === 'reaction') { addFloat(d.emoji, d.name); }
         else if (d.type === 'hand') { setRaisedHands(p => { const n = new Map(p); d.raised ? n.set(d.identity, d.name) : n.delete(d.identity); return n; }); if (d.raised) addFloat('✋', d.name); }
-        else if (d.type === 'transcription') { setSubtitles(prev => { const next = new Map(prev); next.set(d.identity, { ...d, updatedAt: Date.now() }); return next; }); }
+        else if (d.type === 'transcription') { if (captionsOnRef.current) { setSubtitles(prev => { const next = new Map(prev); next.set(d.identity, { ...d, updatedAt: Date.now() }); return next; }); } }
         else if (d.type === 'permissions') { setPerms(d.perms); }
         else if (d.type === 'host_action') {
           if (d.action === 'mute_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setMicrophoneEnabled(false);
@@ -258,7 +260,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         else interimTranscript += event.results[i][0].transcript;
       }
       const text = finalTranscript || interimTranscript;
-      if (!text.trim()) return;
+      if (!text.trim() || !localParticipant.isMicrophoneEnabled) return;
       if (event.results[event.results.length - 1].isFinal || !lastId) lastId = Date.now().toString();
 
       const payload = { type: 'transcription', id: lastId, identity: localParticipant.identity, name: localParticipant.name || 'Anonim', text: text.trim() };
@@ -425,7 +427,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                   onHand: toggleHand,
                   onCaptions: () => setCaptionsOn(v => !v)
                 },
-                { handRaisedRef, subtitlesRef, raisedHandsRef }
+                { handRaisedRef, subtitlesRef, raisedHandsRef, captionsOnRef }
               );
               pw.addEventListener('pagehide', () => { pipRef.current = null; });
             } else {
@@ -656,7 +658,7 @@ function buildPip(pw: any, lp: any, onLeave: () => void, cbs: any, stateRefs?: a
     { label: 'In-call messages', icon: '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', act: () => { cbs.onChat(); menu.classList.remove('open'); } },
     { label: 'Copy joining info', icon: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>', act: () => { cbs.onCopy(); mb.innerHTML='✓'; setTimeout(sync,1500); menu.classList.remove('open'); } },
     { id: 'pip-hand-btn', label: 'Raise hand', icon: '<svg viewBox="0 0 24 24"><path d="M18 14v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5"/><path d="M11 11V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6"/><path d="M15 11v1"/><path d="M7 11V7a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4"/><path d="M3 14V9a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v5"/></svg>', act: () => { cbs.onHand(); menu.classList.remove('open'); } },
-    { label: 'Turn on captions', icon: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>', act: () => { cbs.onCaptions(); menu.classList.remove('open'); } }
+    { id: 'pip-cap-btn', label: 'Turn on captions', icon: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>', act: () => { cbs.onCaptions(); menu.classList.remove('open'); } }
   ];
   items.forEach(i => {
     const btn = pw.document.createElement('button'); btn.className='mi'; btn.innerHTML=i.icon+`<span>${i.label}</span>`;
@@ -703,6 +705,13 @@ function buildPip(pw: any, lp: any, onLeave: () => void, cbs: any, stateRefs?: a
           const handBtn = pw.document.getElementById('pip-hand-btn');
           if (handBtn) {
             handBtn.innerHTML = items[2].icon + `<span>${stateRefs.handRaisedRef.current ? 'Turunkan tangan' : 'Raise hand'}</span>`;
+          }
+        }
+
+        if (stateRefs.captionsOnRef) {
+          const capBtn = pw.document.getElementById('pip-cap-btn');
+          if (capBtn) {
+            capBtn.innerHTML = items[3].icon + `<span>${stateRefs.captionsOnRef.current ? 'Turn off captions' : 'Turn on captions'}</span>`;
           }
         }
 
