@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants } from '@livekit/components-react';
 import { useKrispNoiseFilter } from '@livekit/components-react/krisp';
 import { BackgroundBlur } from '@livekit/track-processors';
@@ -48,7 +48,7 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'lowest' : 'balanced'
   );
 
-  const roomOptions = React.useMemo(() => {
+  const roomOptions = useMemo(() => {
     let res = VideoPresets.h360.resolution;
     if (videoQuality === 'highest') res = VideoPresets.h720.resolution;
     if (videoQuality === 'lowest') res = VideoPresets.h180.resolution;
