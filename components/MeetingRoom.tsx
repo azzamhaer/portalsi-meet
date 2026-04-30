@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants, useTracks, GridLayout, ParticipantTile } from '@livekit/components-react';
 import { useKrispNoiseFilter } from '@livekit/components-react/krisp';
@@ -201,10 +202,10 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         else if (d.type === 'poll_vote') { 
           setPolls(p => p.map(poll => {
             if (poll.id !== d.pollId) return poll;
-            const newVoters = { ...poll.voters, [d.identity]: d.optionIds };
+            const newVoters: Record<string, string[]> = { ...poll.voters, [d.identity]: d.optionIds };
             const newOptions = poll.options.map(opt => {
               let count = 0;
-              Object.values(newVoters).forEach(opts => { if (opts.includes(opt.id)) count++; });
+              Object.values(newVoters).forEach((opts) => { if (Array.isArray(opts) && opts.includes(opt.id)) count++; });
               return { ...opt, votes: count };
             });
             return { ...poll, voters: newVoters, options: newOptions };
@@ -622,7 +623,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
           </div>
         </div>
       )}
-    </div>
+
       {pipWindow && createPortal(
         <PipGrid 
           onLeave={() => { pipWindow.close(); setPipWindow(null); setShowLeaveConfirm(true); }}
