@@ -27,7 +27,7 @@ export interface ChatMsg {
   isPrivate?: boolean; targetIdentity?: string;
 }
 export interface PollOption { id: string; text: string; votes: number; }
-export interface Poll { id: string; question: string; options: PollOption[]; createdBy: string; voters: Record<string, string[]>; allowMultiple?: boolean; } // voterIdentity -> optionIds[]
+export interface Poll { id: string; question: string; options: PollOption[]; createdBy: string; voters: Record<string, string[]>; allowMultiple?: boolean; showResults?: boolean; } // voterIdentity -> optionIds[]
 
 export interface FloatingNotif { id: number; emoji?: string; text: string; name: string; }
 export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; allowWhiteboard: boolean; allowPolls: boolean; }
@@ -210,6 +210,9 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
             });
             return { ...poll, voters: newVoters, options: newOptions };
           })); 
+        }
+        else if (d.type === 'poll_delete') {
+          setPolls(p => p.filter(poll => poll.id !== d.pollId));
         }
         else if (d.type === 'timer_start') { setTimer({ endTime: d.endTime, duration: d.duration }); }
         else if (d.type === 'timer_stop') { setTimer(null); }
@@ -561,7 +564,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
           <ChatPanel messages={chatMsgs} localIdentity={localParticipant.identity} localName={localParticipant.name || 'Anonim'}
             onSend={sendChat} onEdit={editChat} onDelete={deleteChat} onClose={() => setActivePanel(null)}
             disabled={!isHost && !perms.allowChat && !admins.has(localParticipant.identity)}
-            polls={polls} isHost={isHost || admins.has(localParticipant.identity)} pub={pub} allowPolls={perms.allowPolls} onPollCreate={handlePollCreate} />
+            polls={polls} isHost={isHost || admins.has(localParticipant.identity)} pub={pub} allowPolls={perms.allowPolls} onPollCreate={handlePollCreate} admins={admins} />
         </div>
 
         {activePanel && activePanel !== 'chat' && (
@@ -639,22 +642,53 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   );
 }
 
-import { Mic, MicOff, Video, VideoOff, MessageSquare, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, MessageSquare, PhoneOff, Settings, User, LayoutGrid } from 'lucide-react';
 
 function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn }: any) {
-  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }, { source: Track.Source.ScreenShare, withPlaceholder: false }], { onlySubscribed: false });
+  const [pipViewMode, setPipViewMode] = useState<'standard'|'gallery'>('standard');
+  const [pipHideSelf, setPipHideSelf] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const { localParticipant } = useLocalParticipant();
+  const allTracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }, { source: Track.Source.ScreenShare, withPlaceholder: false }], { onlySubscribed: false });
+  
+  const tracks = pipHideSelf ? allTracks.filter(t => t.participant.identity !== localParticipant.identity) : allTracks;
+
   return (
-    <div className="w-screen h-screen overflow-hidden text-white flex flex-col relative" style={{ background: '#0a0a0f' }}>
-       <div className="flex-1 min-h-0 relative p-1">
-          <GridLayout tracks={tracks} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-            <ParticipantTile />
-          </GridLayout>
+    <div className="w-screen h-screen overflow-hidden text-white flex flex-col relative group" style={{ background: '#0a0a0f' }}>
+       <div className="flex-1 min-h-0 relative p-1" onClick={() => setShowSettings(false)}>
+          {pipViewMode === 'gallery' ? (
+            <GridLayout tracks={tracks.slice(0, 16)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
+              <ParticipantTile />
+            </GridLayout>
+          ) : (
+             <GridLayout tracks={tracks.slice(0, 9)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
+              <ParticipantTile />
+             </GridLayout>
+          )}
        </div>
-       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-center gap-3 opacity-0 hover:opacity-100 transition-opacity">
-          <button onClick={onToggleMic} className={`h-10 w-10 flex items-center justify-center rounded-full ${isMicOn ? 'bg-white/10 text-white' : 'bg-red-500 text-white'}`}>{isMicOn ? <Mic className="h-4 w-4"/> : <MicOff className="h-4 w-4"/>}</button>
-          <button onClick={onToggleCam} className={`h-10 w-10 flex items-center justify-center rounded-full ${isCamOn ? 'bg-white/10 text-white' : 'bg-red-500 text-white'}`}>{isCamOn ? <Video className="h-4 w-4"/> : <VideoOff className="h-4 w-4"/>}</button>
-          <button onClick={onChat} className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white"><MessageSquare className="h-4 w-4"/></button>
-          <button onClick={onLeave} className="h-10 w-10 flex items-center justify-center rounded-full bg-red-500 text-white"><PhoneOff className="h-4 w-4"/></button>
+       
+       {showSettings && (
+         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl border border-white/10 p-3 flex flex-col gap-3 min-w-[160px] animate-scale-in z-50">
+            <div className="flex justify-between items-center bg-white/5 rounded-lg p-1 gap-1">
+               <button onClick={() => setPipViewMode('standard')} className={`flex-1 flex justify-center py-1.5 rounded-md transition-all ${pipViewMode === 'standard' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white'}`}><User className="h-4 w-4"/></button>
+               <button onClick={() => setPipViewMode('gallery')} className={`flex-1 flex justify-center py-1.5 rounded-md transition-all ${pipViewMode === 'gallery' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white'}`}><LayoutGrid className="h-4 w-4"/></button>
+            </div>
+            <button onClick={() => setPipHideSelf(!pipHideSelf)} className="flex items-center gap-2 text-[11px] font-medium text-white/80 hover:text-white transition-all">
+               <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideSelf ? 'bg-[#8ab4f8] border-[#8ab4f8] text-black' : 'border-white/30'}`}>
+                 {pipHideSelf && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>}
+               </div>
+               Sembunyikan untuk saya
+            </button>
+         </div>
+       )}
+
+       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onToggleMic} className={`h-10 w-10 flex items-center justify-center rounded-full ${isMicOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400'} transition-all`}>{isMicOn ? <Mic className="h-4 w-4"/> : <MicOff className="h-4 w-4"/>}</button>
+          <button onClick={onToggleCam} className={`h-10 w-10 flex items-center justify-center rounded-full ${isCamOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400'} transition-all`}>{isCamOn ? <Video className="h-4 w-4"/> : <VideoOff className="h-4 w-4"/>}</button>
+          <button onClick={onChat} className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all"><MessageSquare className="h-4 w-4"/></button>
+          <button onClick={() => setShowSettings(!showSettings)} className={`h-10 w-10 flex items-center justify-center rounded-full transition-all ${showSettings ? 'bg-[#8ab4f8] text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}><Settings className="h-4 w-4"/></button>
+          <button onClick={onLeave} className="h-10 w-10 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-400 transition-all"><PhoneOff className="h-4 w-4"/></button>
        </div>
     </div>
   )

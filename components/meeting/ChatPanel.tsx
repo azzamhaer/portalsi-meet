@@ -5,13 +5,14 @@ import { MessageSquare, X, Send, MoreVertical, Pencil, Trash2, Reply, Paperclip,
 import { useParticipants } from '@livekit/components-react';
 import type { ChatMsg, Poll } from '../MeetingRoom';
 
-export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, onDelete, onClose, disabled, polls, isHost, pub, allowPolls, onPollCreate }: {
+export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, onDelete, onClose, disabled, polls, isHost, pub, allowPolls, onPollCreate, admins }: {
   messages: ChatMsg[]; localIdentity: string; localName: string;
   onSend: (text: string, opts?: Partial<ChatMsg>) => void; onEdit: (id: string, text: string) => void;
   onDelete: (id: string) => void; onClose: () => void; disabled?: boolean;
   polls: Poll[]; isHost: boolean; pub: (d: any) => void; allowPolls?: boolean;
-  onPollCreate?: (poll: Poll) => void;
+  onPollCreate?: (poll: Poll) => void; admins?: Set<string>;
 }) {
+  const isAdmin = isHost || (admins?.has(localIdentity));
   const [activeTab, setActiveTab] = useState<'chat' | 'polls'>('chat');
 
   // Chat State
@@ -32,6 +33,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [isCreatingPoll, setIsCreatingPoll] = useState(false);
   const [allowMultiple, setAllowMultiple] = useState(true);
+  const [showResults, setShowResults] = useState(true);
 
   useEffect(() => {
     if (activeTab === 'chat' && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -72,7 +74,12 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
   };
 
   const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const visibleMessages = messages.filter(m => !m.isPrivate || m.senderIdentity === localIdentity || m.targetIdentity === localIdentity);
+  
+  const privateChatIds = Array.from(new Set(messages.filter(m => m.isPrivate && (m.senderIdentity === localIdentity || m.targetIdentity === localIdentity)).map(m => m.senderIdentity === localIdentity ? m.targetIdentity! : m.senderIdentity)));
+  const visibleMessages = messages.filter(m => {
+    if (targetIdentity === 'all') return !m.isPrivate;
+    return m.isPrivate && (m.senderIdentity === targetIdentity || m.targetIdentity === targetIdentity);
+  });
 
 
 
@@ -82,11 +89,11 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
     const poll: Poll = {
       id: pollId, question: pollQuestion.trim(),
       options: pollOptions.map((opt, i) => ({ id: `opt-${i}`, text: opt.trim(), votes: 0 })),
-      createdBy: localName, voters: {}, allowMultiple
+      createdBy: localName, voters: {}, allowMultiple, showResults
     };
     pub({ type: 'poll_create', poll });
     onPollCreate?.(poll);
-    setIsCreatingPoll(false); setPollQuestion(''); setPollOptions(['', '']); setAllowMultiple(true);
+    setIsCreatingPoll(false); setPollQuestion(''); setPollOptions(['', '']); setAllowMultiple(true); setShowResults(true);
   };
 
   return (
@@ -106,6 +113,13 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
 
       {activeTab === 'chat' && (
         <>
+          <div className="px-4 pt-3 pb-2 flex gap-2 overflow-x-auto meet-scrollbar whitespace-nowrap border-b border-white/[0.06]">
+             <button onClick={() => setTargetIdentity('all')} className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${targetIdentity === 'all' ? 'bg-[#8ab4f8] text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>Semua Orang</button>
+             {privateChatIds.map(id => {
+                const p = participants.find(x => x.identity === id) || { name: 'Anonim', identity: id };
+                return <button key={id} onClick={() => setTargetIdentity(id)} className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1 ${targetIdentity === id ? 'bg-purple-500 text-white' : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'}`}><Lock className="w-3 h-3"/> {p.name}</button>;
+             })}
+          </div>
           <div ref={scrollRef} className="flex-1 overflow-y-auto meet-scrollbar p-4 space-y-3 relative">
             {visibleMessages.length === 0 && <div className="flex flex-col items-center justify-center h-full text-white/20 text-sm"><MessageSquare className="h-8 w-8 mb-2 opacity-50" /><p>Belum ada pesan</p></div>}
             {visibleMessages.map(msg => {
@@ -134,8 +148,10 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
                         <div className="absolute right-0 top-full mt-1 bg-[#121218] border border-white/[0.08] rounded-xl shadow-lg z-50 py-1 min-w-[140px] animate-scale-in">
                           <button onClick={() => { setReplyTo({ id: msg.id, text: msg.text, sender: msg.senderName }); setEditingId(null); setMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06]"><Reply className="h-3.5 w-3.5" /> Balas</button>
                           {isMe && (
-                            <><button onClick={() => { setEditingId(msg.id); setInput(msg.text); setReplyTo(null); setMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06]"><Pencil className="h-3.5 w-3.5" /> Edit</button>
-                            <button onClick={() => { onDelete(msg.id); setMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-400/10"><Trash2 className="h-3.5 w-3.5" /> Hapus</button></>
+                            <button onClick={() => { setEditingId(msg.id); setInput(msg.text); setReplyTo(null); setMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06]"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                          )}
+                          {(isMe || isAdmin) && (
+                            <button onClick={() => { onDelete(msg.id); setMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-400/10"><Trash2 className="h-3.5 w-3.5" /> Hapus</button>
                           )}
                         </div>
                       )}
@@ -189,6 +205,10 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
                   <input type="checkbox" id="allow-multi" checked={allowMultiple} onChange={e => setAllowMultiple(e.target.checked)} className="accent-[#8ab4f8]" />
                   <label htmlFor="allow-multi" className="text-xs text-white/70 cursor-pointer">Izinkan memilih lebih dari satu</label>
                 </div>
+                <div className="flex items-center gap-2 mt-2 mb-2">
+                  <input type="checkbox" id="show-res" checked={showResults} onChange={e => setShowResults(e.target.checked)} className="accent-[#8ab4f8]" />
+                  <label htmlFor="show-res" className="text-xs text-white/70 cursor-pointer">Tampilkan hasil ke semua orang</label>
+                </div>
                 <div className="flex gap-2 mt-4 pt-2 border-t border-white/10">
                   <button onClick={() => setIsCreatingPoll(false)} className="flex-1 py-1.5 text-xs text-white/60 hover:text-white">Batal</button>
                   <button onClick={handleCreatePoll} className="flex-1 py-1.5 text-xs bg-[#8ab4f8] text-black font-bold rounded-lg hover:bg-[#8ab4f8]/80">Publikasi</button>
@@ -213,16 +233,21 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
                 };
 
                 return (
-                  <div key={poll.id} className="bg-white/[0.04] border border-white/10 p-4 rounded-xl">
-                    <p className="text-[10px] text-white/40 mb-1">Oleh {poll.createdBy}</p>
-                    <p className="font-semibold text-white/90 mb-3">{poll.question}</p>
+                  <div key={poll.id} className="bg-white/[0.04] border border-white/10 p-4 rounded-xl relative group">
+                    {(isCreator || isAdmin) && (
+                      <button onClick={() => pub({ type: 'poll_delete', pollId: poll.id })} className="absolute top-3 right-3 p-1.5 rounded-full bg-red-500/10 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20" title="Hapus Polling">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <p className="text-[10px] text-white/40 mb-1">Oleh {poll.createdBy} {!poll.showResults && <span className="text-yellow-400/70 ml-1">(Hasil Disembunyikan)</span>}</p>
+                    <p className="font-semibold text-white/90 mb-3 pr-6">{poll.question}</p>
                     <div className="space-y-2">
                       {poll.options.map(opt => {
                         const pct = totalVotersCount > 0 ? Math.round((opt.votes / totalVotersCount) * 100) : 0;
                         const isMyVote = myVoteIds.includes(opt.id);
                         
                         let voterNames: string[] = [];
-                        if (isCreator) {
+                        if (isCreator || isAdmin) {
                            Object.entries(poll.voters).forEach(([id, opts]) => {
                              if (opts.includes(opt.id)) {
                                const p = participants.find(x => x.identity === id);
@@ -232,15 +257,17 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
                            });
                         }
 
+                        const showData = poll.showResults || isCreator || isAdmin;
+
                         return (
                           <div key={opt.id} onClick={() => handleVote(opt.id)} className={`relative overflow-hidden cursor-pointer border rounded-lg p-2.5 transition-all ${isMyVote ? 'border-[#8ab4f8] bg-[#8ab4f8]/10' : 'border-white/10 hover:border-white/30 bg-black/20'}`}>
-                            <div className="absolute left-0 top-0 bottom-0 bg-white/10" style={{ width: `${pct}%`, transition: 'width 0.5s ease' }} />
+                            {showData && <div className="absolute left-0 top-0 bottom-0 bg-white/10" style={{ width: `${pct}%`, transition: 'width 0.5s ease' }} />}
                             <div className="relative z-10 flex flex-col">
                               <div className="flex justify-between items-center text-sm">
                                 <span className={isMyVote ? 'text-[#8ab4f8] font-bold' : 'text-white/80'}>{opt.text}</span>
-                                <span className="text-white/50 text-xs">{opt.votes} ({pct}%)</span>
+                                {showData && <span className="text-white/50 text-xs">{opt.votes} ({pct}%)</span>}
                               </div>
-                              {isCreator && voterNames.length > 0 && (
+                              {showData && voterNames.length > 0 && (
                                 <p className="text-[9px] text-white/40 mt-1 font-medium">Pemilih: {voterNames.join(', ')}</p>
                               )}
                             </div>
@@ -248,7 +275,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
                         );
                       })}
                     </div>
-                    <p className="text-[10px] text-white/30 mt-3 text-right">{totalVotersCount} orang telah memilih</p>
+                    {(poll.showResults || isCreator || isAdmin) && <p className="text-[10px] text-white/30 mt-3 text-right">{totalVotersCount} orang telah memilih</p>}
                   </div>
                 );
               })
