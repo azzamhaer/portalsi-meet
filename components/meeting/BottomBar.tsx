@@ -58,7 +58,7 @@ export function BottomBar({
   };
   const toggleShare = async () => {
     try {
-      if (sharing) { await localParticipant.setScreenShareEnabled(false); setSharing(false); }
+      if (localParticipant.isScreenShareEnabled) { await localParticipant.setScreenShareEnabled(false); setSharing(false); }
       else { await localParticipant.setScreenShareEnabled(true, { audio: true }); setSharing(true); }
     } catch { setSharing(false); }
   };
@@ -66,6 +66,7 @@ export function BottomBar({
   // Sync state from participant
   const isMicOn = localParticipant.isMicrophoneEnabled;
   const isCamOn = localParticipant.isCameraEnabled;
+  const isSharing = localParticipant.isScreenShareEnabled;
 
   const flipCamera = async () => {
     const track = localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
@@ -190,10 +191,10 @@ export function BottomBar({
 
           {/* Screen share — desktop */}
           <div className="hidden md:block">
-            <Tooltip text={canShare ? (sharing ? 'Stop Share' : 'Share Layar') : 'Screen share dinonaktifkan'}>
+            <Tooltip text={canShare ? (isSharing ? 'Stop Share' : 'Share Layar') : 'Screen share dinonaktifkan'}>
               <button onClick={canShare ? toggleShare : undefined} disabled={!canShare}
-                className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!canShare ? 'opacity-30 cursor-not-allowed' : sharing ? '!bg-green-500/20 !border-green-500/30 !text-green-400' : ''}`}>
-                {sharing ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />}
+                className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!canShare ? 'opacity-30 cursor-not-allowed' : isSharing ? '!bg-green-500/20 !border-green-500/30 !text-green-400' : ''}`}>
+                {isSharing ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />}
               </button>
             </Tooltip>
           </div>

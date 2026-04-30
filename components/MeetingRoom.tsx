@@ -173,7 +173,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         const d = JSON.parse(dec.current.decode(payload));
         if (d.type === 'chat') {
           if (d.action === 'send') {
-            setChatMsgs(p => p.some(m => m.id === d.id) ? p : [...p, { id: d.id, text: d.text, senderName: d.senderName, senderIdentity: d.senderIdentity, ts: d.ts }]);
+            setChatMsgs(p => p.some(m => m.id === d.id) ? p : [...p, { id: d.id, text: d.text, senderName: d.senderName, senderIdentity: d.senderIdentity, ts: d.ts, fileUrl: d.fileUrl, fileName: d.fileName, replyToId: d.replyToId, replyToText: d.replyToText, replyToSender: d.replyToSender, isPrivate: d.isPrivate, targetIdentity: d.targetIdentity }]);
             if (activePanelRef.current !== 'chat') setUnreadCount(c => c + 1);
           } else if (d.action === 'edit') setChatMsgs(p => p.map(m => m.id === d.id ? { ...m, text: d.text, edited: true, editedAt: d.ts } : m));
           else if (d.action === 'delete') setChatMsgs(p => p.map(m => m.id === d.id ? { ...m, deleted: true, deletedAt: d.ts } : m));
