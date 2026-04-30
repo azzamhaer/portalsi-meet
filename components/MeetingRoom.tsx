@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants } from '@livekit/components-react';
+import { createPortal } from 'react-dom';
+import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants, useTracks, GridLayout, ParticipantTile } from '@livekit/components-react';
 import { useKrispNoiseFilter } from '@livekit/components-react/krisp';
 import { BackgroundBlur } from '@livekit/track-processors';
 import { VideoPresets, DisconnectReason, RoomOptions, Track, RoomEvent, LocalVideoTrack } from 'livekit-client';
@@ -26,7 +26,7 @@ export interface ChatMsg {
   isPrivate?: boolean; targetIdentity?: string;
 }
 export interface PollOption { id: string; text: string; votes: number; }
-export interface Poll { id: string; question: string; options: PollOption[]; createdBy: string; voters: Record<string, string>; } // voterIdentity -> optionId
+export interface Poll { id: string; question: string; options: PollOption[]; createdBy: string; voters: Record<string, string[]>; allowMultiple?: boolean; } // voterIdentity -> optionIds[]
 
 export interface FloatingNotif { id: number; emoji?: string; text: string; name: string; }
 export interface RoomPerms { allowChat: boolean; allowScreenShare: boolean; allowJoin: boolean; allowReactions: boolean; lobbyMode: boolean; allowRename: boolean; allowWhiteboard: boolean; allowPolls: boolean; }
@@ -108,6 +108,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const [timer, setTimer] = useState<{ endTime: number; duration: number } | null>(null);
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [admins, setAdmins] = useState<Set<string>>(new Set(isHost ? ['super_admin'] : [])); 
+  const [superAdmin, setSuperAdmin] = useState<string | null>(isHost ? 'super_admin' : null);
+  const [pipWindow, setPipWindow] = useState<Window | null>(null);
   
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
@@ -123,12 +125,13 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<{ endTime: number; duration: number } | null>(null);
   const adminsRef = useRef<Set<string>>(new Set(isHost ? ['super_admin'] : []));
+  const superAdminRef = useRef(superAdmin);
   const handRaisedRef = useRef(handRaised);
   const subtitlesRef = useRef(subtitles);
   const raisedHandsRef = useRef(raisedHands);
   const captionsOnRef = useRef(captionsOn);
 
-  useEffect(() => { timerRef.current = timer; adminsRef.current = admins; }, [timer, admins]);
+  useEffect(() => { timerRef.current = timer; adminsRef.current = admins; superAdminRef.current = superAdmin; }, [timer, admins, superAdmin]);
   useEffect(() => { handRaisedRef.current = handRaised; }, [handRaised]);
   useEffect(() => { subtitlesRef.current = subtitles; }, [subtitles]);
   useEffect(() => { raisedHandsRef.current = raisedHands; }, [raisedHands]);
@@ -192,9 +195,21 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
           if (d.action === 'promote') setAdmins(prev => new Set(prev).add(d.target));
           if (d.action === 'demote') setAdmins(prev => { const n = new Set(prev); n.delete(d.target); return n; });
         }
-        else if (d.type === 'admin_sync') { setAdmins(new Set(d.admins)); }
+        else if (d.type === 'admin_sync') { setAdmins(new Set(d.admins)); if (d.superAdmin) setSuperAdmin(d.superAdmin); }
+        else if (d.type === 'new_super_admin') { setSuperAdmin(d.target); }
         else if (d.type === 'poll_create') { setPolls(p => [...p, d.poll]); if (activePanelRef.current !== 'chat') setUnreadCount(c => c + 1); }
-        else if (d.type === 'poll_vote') { setPolls(p => p.map(poll => poll.id === d.pollId ? { ...poll, voters: { ...poll.voters, [d.identity]: d.optionId }, options: poll.options.map(opt => ({ ...opt, votes: opt.id === d.optionId ? opt.votes + 1 : (poll.voters[d.identity] === opt.id ? opt.votes - 1 : opt.votes) })) } : poll)); }
+        else if (d.type === 'poll_vote') { 
+          setPolls(p => p.map(poll => {
+            if (poll.id !== d.pollId) return poll;
+            const newVoters = { ...poll.voters, [d.identity]: d.optionIds };
+            const newOptions = poll.options.map(opt => {
+              let count = 0;
+              Object.values(newVoters).forEach(opts => { if (opts.includes(opt.id)) count++; });
+              return { ...opt, votes: count };
+            });
+            return { ...poll, voters: newVoters, options: newOptions };
+          })); 
+        }
         else if (d.type === 'timer_start') { setTimer({ endTime: d.endTime, duration: d.duration }); }
         else if (d.type === 'timer_stop') { setTimer(null); }
       } catch {}
@@ -213,7 +228,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         // Host syncs state to new joiners
         if (isHost) {
           setTimeout(() => {
-             room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'admin_sync', admins: Array.from(adminsRef.current) })), { reliable: true });
+             room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'admin_sync', admins: Array.from(adminsRef.current), superAdmin: superAdminRef.current })), { reliable: true });
              if (timerRef.current) room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'timer_start', endTime: timerRef.current.endTime, duration: timerRef.current.duration })), { reliable: true });
           }, 1500);
         }
@@ -404,31 +419,26 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
       clearTimeout(to);
       if (document.hidden) {
         to = setTimeout(async () => {
-          if (pipRef.current) return;
+          if (pipWindow) return;
           try {
             if ('documentPictureInPicture' in window) {
-              const pw = await (window as any).documentPictureInPicture.requestWindow({ width: 340, height: 260 });
-              pipRef.current = pw;
-              buildPip(pw, localParticipant, 
-                () => { pw.close(); pipRef.current = null; setShowLeaveConfirm(true); },
-                {
-                  onChat: () => { window.focus(); setActivePanel('chat'); pw.close(); },
-                  onCopy: () => {
-                    const url = window.location.href;
-                    if (pw.navigator && pw.navigator.clipboard) {
-                      pw.navigator.clipboard.writeText(url).catch(() => {
-                        const i = pw.document.createElement('input'); i.value = url; pw.document.body.appendChild(i); i.select(); pw.document.execCommand('copy'); pw.document.body.removeChild(i);
-                      });
-                    } else {
-                      const i = pw.document.createElement('input'); i.value = url; pw.document.body.appendChild(i); i.select(); pw.document.execCommand('copy'); pw.document.body.removeChild(i);
-                    }
-                  },
-                  onHand: toggleHand,
-                  onCaptions: () => setCaptionsOn(v => !v)
-                },
-                { handRaisedRef, subtitlesRef, raisedHandsRef, captionsOnRef }
-              );
-              pw.addEventListener('pagehide', () => { pipRef.current = null; });
+              const pw = await (window as any).documentPictureInPicture.requestWindow({ width: 400, height: 300 });
+              pw.addEventListener('pagehide', () => setPipWindow(null));
+              [...document.styleSheets].forEach(styleSheet => {
+                try {
+                  const cssRules = [...styleSheet.cssRules].map(rule => rule.cssText).join('');
+                  const style = document.createElement('style');
+                  style.textContent = cssRules;
+                  pw.document.head.appendChild(style);
+                } catch (e) {
+                  const link = document.createElement('link');
+                  link.rel = 'stylesheet'; link.type = styleSheet.type;
+                  if (styleSheet.media.mediaText) link.media = styleSheet.media.mediaText;
+                  link.href = styleSheet.href!;
+                  pw.document.head.appendChild(link);
+                }
+              });
+              setPipWindow(pw);
             } else {
               const v = document.querySelector('.lk-participant-tile video') as HTMLVideoElement | null;
               if (v?.requestPictureInPicture) await v.requestPictureInPicture();
@@ -436,14 +446,14 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
           } catch {}
         }, 100);
       } else {
-        try { if (pipRef.current) { pipRef.current.close(); pipRef.current = null; } if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {}); } catch {}
+        try { if (pipWindow) { pipWindow.close(); setPipWindow(null); } if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {}); } catch {}
       }
     };
     document.addEventListener('visibilitychange', handle);
     window.addEventListener('blur', handle);
     window.addEventListener('focus', handle);
-    return () => { clearTimeout(to); document.removeEventListener('visibilitychange', handle); window.removeEventListener('blur', handle); window.removeEventListener('focus', handle); if (pipRef.current) { pipRef.current.close(); pipRef.current = null; } };
-  }, [localParticipant]);
+    return () => { clearTimeout(to); document.removeEventListener('visibilitychange', handle); window.removeEventListener('blur', handle); window.removeEventListener('focus', handle); if (pipWindow) { pipWindow.close(); setPipWindow(null); } };
+  }, [pipWindow]);
 
   const handleTimerClick = () => {
     setShowTimerModal(true);
@@ -462,10 +472,16 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   };
 
   const handleLeaveAction = () => {
-    if (admins.has(localParticipant.identity) && admins.size === 1) {
-      const others = Array.from(room.remoteParticipants.values());
-      if (others.length > 0) {
-        pub({ type: 'host_action', action: 'promote', target: others[0].identity });
+    if (superAdmin === localParticipant.identity || (superAdmin === 'super_admin' && isHost)) {
+      const otherAdmins = Array.from(admins).filter(id => id !== localParticipant.identity && id !== 'super_admin' && room.remoteParticipants.has(id));
+      if (otherAdmins.length > 0) {
+        pub({ type: 'new_super_admin', target: otherAdmins[0] });
+      } else {
+        const others = Array.from(room.remoteParticipants.values());
+        if (others.length > 0) {
+           pub({ type: 'host_action', action: 'promote', target: others[0].identity });
+           pub({ type: 'new_super_admin', target: others[0].identity });
+        }
       }
     }
     onLeave();
@@ -607,125 +623,38 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         </div>
       )}
     </div>
+      {pipWindow && createPortal(
+        <PipGrid 
+          onLeave={() => { pipWindow.close(); setPipWindow(null); setShowLeaveConfirm(true); }}
+          onChat={() => { window.focus(); setActivePanel('chat'); pipWindow.close(); setPipWindow(null); }}
+          onToggleMic={() => localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)}
+          onToggleCam={() => localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled)}
+          isMicOn={localParticipant.isMicrophoneEnabled}
+          isCamOn={localParticipant.isCameraEnabled}
+        />, 
+        pipWindow.document.body
+      )}
+    </div>
   );
 }
 
-// === PiP builder — no room ID, polling sync, leave confirmation ===
-function buildPip(pw: any, lp: any, onLeave: () => void, cbs: any, stateRefs?: any) {
-  const s = pw.document.createElement('style');
-  s.textContent = `*{margin:0;box-sizing:border-box;font-family:system-ui}body{background:#0a0a0f;overflow:hidden}.w{height:100vh;position:relative}.v{height:100%;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;object-fit:cover}.nv{color:rgba(255,255,255,0.2);font-size:13px;text-align:center}.nav{display:flex;gap:8px;padding:10px 16px;justify-content:center;position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);opacity:0;transition:opacity 0.2s}.w:hover .nav{opacity:1}.b{width:40px;height:40px;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;position:relative}.bd{background:rgba(255,255,255,0.12);color:#e8eaed}.bd:hover{background:rgba(255,255,255,0.2)}.ba{background:rgba(234,67,53,0.8);color:#fff}.br{background:rgba(234,67,53,0.85);color:#fff}.br:hover{background:#ea4335}svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .menu{position:absolute;bottom:55px;right:10px;background:#202124;border-radius:12px;padding:8px 0;box-shadow:0 10px 30px rgba(0,0,0,0.5);display:none;flex-direction:column;min-width:220px;transform:translateY(10px);opacity:0;transition:all 0.2s ease;z-index:100}
-  .menu.open{display:flex;transform:translateY(0);opacity:1}
-  .mi{display:flex;align-items:center;gap:12px;padding:10px 16px;color:#e8eaed;background:transparent;border:none;width:100%;text-align:left;cursor:pointer;font-size:14px;transition:background 0.2s}
-  .mi:hover{background:rgba(255,255,255,0.08)}
-  .mi svg{width:16px;height:16px;color:#9aa0a6}
-  .cc{position:absolute;bottom:70px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:4px;width:90%;pointer-events:none}
-  .cc-i{background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);padding:6px 12px;border-radius:8px;text-align:center}
-  .c-n{font-size:10px;color:#8ab4f8;font-weight:bold;margin-bottom:2px}
-  .c-t{font-size:13px;color:#fff}
-  .rh-ind{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);padding:6px 12px;border-radius:12px;color:#fff;font-size:12px;display:none;z-index:10}`;
-  pw.document.head.appendChild(s);
-  const MI='<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
-  const MO='<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .76-.13 1.5-.35 2.18"/></svg>';
-  const CI='<svg viewBox="0 0 24 24"><path d="m16 6 5-3v18l-5-3Z"/><rect x="2" y="4" width="14" height="16" rx="2"/></svg>';
-  const CO='<svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16 6.12V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10"/><path d="m22 8-5 3"/></svg>';
-  const PH='<svg viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 2.59 3.4Z"/></svg>';
-  const DOTS='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>';
+import { Mic, MicOff, Video, VideoOff, MessageSquare, PhoneOff } from 'lucide-react';
 
-  const wrap = pw.document.createElement('div'); wrap.className='w';
-  const vid = pw.document.createElement('div'); vid.className='v';
-  const videoEl = pw.document.createElement('video'); videoEl.autoplay=true; videoEl.muted=true; videoEl.playsInline=true;
-  const noVid = pw.document.createElement('div'); noVid.className='nv'; noVid.textContent='Kamera mati';
-  let lastTrackId = '';
-
-  const updateVideo = () => {
-    const t = lp.getTrackPublication?.(Track.Source.Camera)?.track;
-    const tid = t?.mediaStreamTrack?.id || '';
-    if (tid && tid !== lastTrackId) { videoEl.srcObject = new MediaStream([t.mediaStreamTrack]); lastTrackId = tid; if (!videoEl.parentNode) { noVid.remove(); vid.prepend(videoEl); } }
-    else if (!tid && !noVid.parentNode) { videoEl.remove(); vid.prepend(noVid); lastTrackId = ''; }
-  };
-  updateVideo();
-
-  const nav = pw.document.createElement('div'); nav.className='nav';
-  const mb = pw.document.createElement('button');
-  const cb = pw.document.createElement('button');
-  const lb = pw.document.createElement('button'); lb.className='b br'; lb.innerHTML=PH;
-  const db = pw.document.createElement('button'); db.className='b bd'; db.innerHTML=DOTS;
-
-  const menu = pw.document.createElement('div'); menu.className='menu';
-  const items = [
-    { label: 'In-call messages', icon: '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', act: () => { cbs.onChat(); menu.classList.remove('open'); } },
-    { label: 'Copy joining info', icon: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>', act: () => { cbs.onCopy(); mb.innerHTML='✓'; setTimeout(sync,1500); menu.classList.remove('open'); } },
-    { id: 'pip-hand-btn', label: 'Raise hand', icon: '<svg viewBox="0 0 24 24"><path d="M18 14v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5"/><path d="M11 11V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6"/><path d="M15 11v1"/><path d="M7 11V7a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4"/><path d="M3 14V9a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v5"/></svg>', act: () => { cbs.onHand(); menu.classList.remove('open'); } },
-    { id: 'pip-cap-btn', label: 'Turn on captions', icon: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg>', act: () => { cbs.onCaptions(); menu.classList.remove('open'); } }
-  ];
-  items.forEach(i => {
-    const btn = pw.document.createElement('button'); btn.className='mi'; btn.innerHTML=i.icon+`<span>${i.label}</span>`;
-    if (i.id) btn.id = i.id;
-    btn.onclick = (e: any) => { e.stopPropagation(); i.act(); };
-    menu.appendChild(btn);
-  });
-  
-  db.onclick = (e: any) => { e.stopPropagation(); menu.classList.toggle('open'); };
-  pw.document.body.onclick = () => menu.classList.remove('open');
-
-  const ccDiv = pw.document.createElement('div'); ccDiv.className = 'cc'; ccDiv.style.display = 'none';
-  const rhInd = pw.document.createElement('div'); rhInd.className = 'rh-ind';
-  
-  wrap.appendChild(ccDiv);
-  wrap.appendChild(rhInd);
-
-  const sync = () => { const m=lp.isMicrophoneEnabled,c=lp.isCameraEnabled; mb.innerHTML=m?MI:MO; mb.className=`b ${m?'bd':'ba'}`; cb.innerHTML=c?CI:CO; cb.className=`b ${c?'bd':'ba'}`; };
-  sync();
-  mb.onclick = (e: any) => { e.stopPropagation(); lp.setMicrophoneEnabled(!lp.isMicrophoneEnabled); setTimeout(sync,100); };
-  cb.onclick = (e: any) => { e.stopPropagation(); lp.setCameraEnabled(!lp.isCameraEnabled); setTimeout(()=>{sync();updateVideo();},300); };
-  lb.onclick = (e: any) => { e.stopPropagation(); onLeave(); };
-  
-  nav.appendChild(mb); nav.appendChild(cb); nav.appendChild(db); nav.appendChild(lb);
-  wrap.appendChild(menu);
-  vid.appendChild(nav); wrap.appendChild(vid); pw.document.body.appendChild(wrap);
-  const iv = setInterval(() => { 
-    try { 
-      sync(); 
-      updateVideo(); 
-
-      if (stateRefs) {
-        if (stateRefs.subtitlesRef && stateRefs.subtitlesRef.current) {
-          const subs = Array.from(stateRefs.subtitlesRef.current.values()).sort((a:any, b:any) => a.updatedAt - b.updatedAt).slice(-2);
-          if (subs.length > 0) {
-            ccDiv.style.display = 'flex';
-            ccDiv.innerHTML = subs.map((s:any) => `<div class="cc-i"><div class="c-n">${s.name}</div><div class="c-t">${s.text}</div></div>`).join('');
-          } else {
-            ccDiv.style.display = 'none';
-          }
-        }
-        
-        if (stateRefs.handRaisedRef) {
-          const handBtn = pw.document.getElementById('pip-hand-btn');
-          if (handBtn) {
-            handBtn.innerHTML = items[2].icon + `<span>${stateRefs.handRaisedRef.current ? 'Turunkan tangan' : 'Raise hand'}</span>`;
-          }
-        }
-
-        if (stateRefs.captionsOnRef) {
-          const capBtn = pw.document.getElementById('pip-cap-btn');
-          if (capBtn) {
-            capBtn.innerHTML = items[3].icon + `<span>${stateRefs.captionsOnRef.current ? 'Turn off captions' : 'Turn on captions'}</span>`;
-          }
-        }
-
-        if (stateRefs.raisedHandsRef && stateRefs.raisedHandsRef.current) {
-          const rhMap = stateRefs.raisedHandsRef.current;
-          if (rhMap.size > 0) {
-            rhInd.style.display = 'block';
-            rhInd.innerHTML = `✋ ${Array.from(rhMap.values()).join(', ')} mengangkat tangan`;
-          } else {
-            rhInd.style.display = 'none';
-          }
-        }
-      }
-
-    } catch { clearInterval(iv); } 
-  }, 500);
-  pw.addEventListener('pagehide', () => clearInterval(iv));
+function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn }: any) {
+  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }, { source: Track.Source.ScreenShare, withPlaceholder: false }], { onlySubscribed: false });
+  return (
+    <div className="w-screen h-screen overflow-hidden text-white flex flex-col relative" style={{ background: '#0a0a0f' }}>
+       <div className="flex-1 min-h-0 relative p-1">
+          <GridLayout tracks={tracks} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
+            <ParticipantTile />
+          </GridLayout>
+       </div>
+       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-center gap-3 opacity-0 hover:opacity-100 transition-opacity">
+          <button onClick={onToggleMic} className={`h-10 w-10 flex items-center justify-center rounded-full ${isMicOn ? 'bg-white/10 text-white' : 'bg-red-500 text-white'}`}>{isMicOn ? <Mic className="h-4 w-4"/> : <MicOff className="h-4 w-4"/>}</button>
+          <button onClick={onToggleCam} className={`h-10 w-10 flex items-center justify-center rounded-full ${isCamOn ? 'bg-white/10 text-white' : 'bg-red-500 text-white'}`}>{isCamOn ? <Video className="h-4 w-4"/> : <VideoOff className="h-4 w-4"/>}</button>
+          <button onClick={onChat} className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white"><MessageSquare className="h-4 w-4"/></button>
+          <button onClick={onLeave} className="h-10 w-10 flex items-center justify-center rounded-full bg-red-500 text-white"><PhoneOff className="h-4 w-4"/></button>
+       </div>
+    </div>
+  )
 }

@@ -31,6 +31,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [isCreatingPoll, setIsCreatingPoll] = useState(false);
+  const [allowMultiple, setAllowMultiple] = useState(true);
 
   useEffect(() => {
     if (activeTab === 'chat' && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -81,11 +82,11 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
     const poll: Poll = {
       id: pollId, question: pollQuestion.trim(),
       options: pollOptions.map((opt, i) => ({ id: `opt-${i}`, text: opt.trim(), votes: 0 })),
-      createdBy: localName, voters: {}
+      createdBy: localName, voters: {}, allowMultiple
     };
     pub({ type: 'poll_create', poll });
     onPollCreate?.(poll);
-    setIsCreatingPoll(false); setPollQuestion(''); setPollOptions(['', '']);
+    setIsCreatingPoll(false); setPollQuestion(''); setPollOptions(['', '']); setAllowMultiple(true);
   };
 
   return (
@@ -184,6 +185,10 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
                   ))}
                 </div>
                 <button onClick={() => setPollOptions([...pollOptions, ''])} className="text-xs text-[#8ab4f8] flex items-center gap-1 hover:underline"><PlusCircle className="w-3 h-3"/> Tambah Opsi</button>
+                <div className="flex items-center gap-2 mt-2">
+                  <input type="checkbox" id="allow-multi" checked={allowMultiple} onChange={e => setAllowMultiple(e.target.checked)} className="accent-[#8ab4f8]" />
+                  <label htmlFor="allow-multi" className="text-xs text-white/70 cursor-pointer">Izinkan memilih lebih dari satu</label>
+                </div>
                 <div className="flex gap-2 mt-4 pt-2 border-t border-white/10">
                   <button onClick={() => setIsCreatingPoll(false)} className="flex-1 py-1.5 text-xs text-white/60 hover:text-white">Batal</button>
                   <button onClick={handleCreatePoll} className="flex-1 py-1.5 text-xs bg-[#8ab4f8] text-black font-bold rounded-lg hover:bg-[#8ab4f8]/80">Publikasi</button>
@@ -191,28 +196,59 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
               </div>
             ) : (
               polls.map(poll => {
-                const totalVotes = Object.values(poll.voters).length;
-                const myVoteId = poll.voters[localIdentity];
+                const activeVoters = Object.values(poll.voters).filter(opts => opts.length > 0);
+                const totalVotersCount = activeVoters.length;
+                const myVoteIds = poll.voters[localIdentity] || [];
+                const isCreator = poll.createdBy === localName;
+
+                const handleVote = (optId: string) => {
+                  let newVoteIds = [...myVoteIds];
+                  if (poll.allowMultiple) {
+                    if (newVoteIds.includes(optId)) newVoteIds = newVoteIds.filter(id => id !== optId);
+                    else newVoteIds.push(optId);
+                  } else {
+                    newVoteIds = [optId];
+                  }
+                  pub({ type: 'poll_vote', pollId: poll.id, optionIds: newVoteIds, identity: localIdentity });
+                };
+
                 return (
                   <div key={poll.id} className="bg-white/[0.04] border border-white/10 p-4 rounded-xl">
                     <p className="text-[10px] text-white/40 mb-1">Oleh {poll.createdBy}</p>
                     <p className="font-semibold text-white/90 mb-3">{poll.question}</p>
                     <div className="space-y-2">
                       {poll.options.map(opt => {
-                        const pct = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                        const isMyVote = myVoteId === opt.id;
+                        const pct = totalVotersCount > 0 ? Math.round((opt.votes / totalVotersCount) * 100) : 0;
+                        const isMyVote = myVoteIds.includes(opt.id);
+                        
+                        let voterNames: string[] = [];
+                        if (isCreator) {
+                           Object.entries(poll.voters).forEach(([id, opts]) => {
+                             if (opts.includes(opt.id)) {
+                               const p = participants.find(x => x.identity === id);
+                               if (p) voterNames.push(p.name || 'Anonim');
+                               else if (id === localIdentity) voterNames.push(localName);
+                             }
+                           });
+                        }
+
                         return (
-                          <div key={opt.id} onClick={() => pub({ type: 'poll_vote', pollId: poll.id, optionId: opt.id, identity: localIdentity })} className={`relative overflow-hidden cursor-pointer border rounded-lg p-2.5 transition-all ${isMyVote ? 'border-[#8ab4f8] bg-[#8ab4f8]/10' : 'border-white/10 hover:border-white/30 bg-black/20'}`}>
+                          <div key={opt.id} onClick={() => handleVote(opt.id)} className={`relative overflow-hidden cursor-pointer border rounded-lg p-2.5 transition-all ${isMyVote ? 'border-[#8ab4f8] bg-[#8ab4f8]/10' : 'border-white/10 hover:border-white/30 bg-black/20'}`}>
                             <div className="absolute left-0 top-0 bottom-0 bg-white/10" style={{ width: `${pct}%`, transition: 'width 0.5s ease' }} />
-                            <div className="relative flex justify-between items-center text-sm z-10">
-                              <span className={isMyVote ? 'text-[#8ab4f8] font-bold' : 'text-white/80'}>{opt.text}</span>
-                              <span className="text-white/50 text-xs">{opt.votes} ({pct}%)</span>
+                            <div className="relative z-10 flex flex-col">
+                              <div className="flex justify-between items-center text-sm">
+                                <span className={isMyVote ? 'text-[#8ab4f8] font-bold' : 'text-white/80'}>{opt.text}</span>
+                                <span className="text-white/50 text-xs">{opt.votes} ({pct}%)</span>
+                              </div>
+                              {isCreator && voterNames.length > 0 && (
+                                <p className="text-[9px] text-white/40 mt-1 font-medium">Pemilih: {voterNames.join(', ')}</p>
+                              )}
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                    <p className="text-[10px] text-white/30 mt-3 text-right">{totalVotes} suara</p>
+                    <p className="text-[10px] text-white/30 mt-3 text-right">{totalVotersCount} orang telah memilih</p>
                   </div>
                 );
               })
