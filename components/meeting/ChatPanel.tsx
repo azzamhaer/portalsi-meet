@@ -5,12 +5,12 @@ import { MessageSquare, X, Send, MoreVertical, Pencil, Trash2, Reply, Paperclip,
 import { useParticipants } from '@livekit/components-react';
 import type { ChatMsg, Poll } from '../MeetingRoom';
 
-export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, onDelete, onClose, disabled, polls, isHost, pub, allowPolls, onPollCreate, admins }: {
+export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, onDelete, onClose, disabled, polls, isHost, pub, allowPolls, onPollCreate, onPollVote, onPollDelete, admins }: {
   messages: ChatMsg[]; localIdentity: string; localName: string;
   onSend: (text: string, opts?: Partial<ChatMsg>) => void; onEdit: (id: string, text: string) => void;
   onDelete: (id: string) => void; onClose: () => void; disabled?: boolean;
   polls: Poll[]; isHost: boolean; pub: (d: any) => void; allowPolls?: boolean;
-  onPollCreate?: (poll: Poll) => void; admins?: Set<string>;
+  onPollCreate?: (poll: Poll) => void; onPollVote?: (pollId: string, optionIds: string[]) => void; onPollDelete?: (pollId: string) => void; admins?: Set<string>;
 }) {
   const isAdmin = isHost || (admins?.has(localIdentity));
   const [activeTab, setActiveTab] = useState<'chat' | 'polls'>('chat');
@@ -227,15 +227,22 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
                     if (newVoteIds.includes(optId)) newVoteIds = newVoteIds.filter(id => id !== optId);
                     else newVoteIds.push(optId);
                   } else {
-                    newVoteIds = [optId];
+                    if (newVoteIds.includes(optId)) newVoteIds = [];
+                    else newVoteIds = [optId];
                   }
-                  pub({ type: 'poll_vote', pollId: poll.id, optionIds: newVoteIds, identity: localIdentity });
+                  if (onPollVote) onPollVote(poll.id, newVoteIds);
+                  else pub({ type: 'poll_vote', pollId: poll.id, optionIds: newVoteIds, identity: localIdentity });
                 };
 
                 return (
                   <div key={poll.id} className="bg-white/[0.04] border border-white/10 p-4 rounded-xl relative group">
                     {(isCreator || isAdmin) && (
-                      <button onClick={() => pub({ type: 'poll_delete', pollId: poll.id })} className="absolute top-3 right-3 p-1.5 rounded-full bg-red-500/10 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20" title="Hapus Polling">
+                      <button onClick={() => {
+                        if (window.confirm('Apakah Anda yakin ingin menghapus polling ini?')) {
+                          if (onPollDelete) onPollDelete(poll.id);
+                          else pub({ type: 'poll_delete', pollId: poll.id });
+                        }
+                      }} className="absolute top-3 right-3 p-1.5 rounded-full bg-red-500/10 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20" title="Hapus Polling">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}

@@ -213,6 +213,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         }
         else if (d.type === 'poll_delete') {
           setPolls(p => p.filter(poll => poll.id !== d.pollId));
+          setChatMsgs(p => [...p, { id: Date.now().toString() + Math.random().toString(), text: '🗑️ Polling ini telah dihapus.', senderName: 'Sistem', senderIdentity: 'system', ts: Date.now() }]);
         }
         else if (d.type === 'timer_start') { setTimer({ endTime: d.endTime, duration: d.duration }); }
         else if (d.type === 'timer_stop') { setTimer(null); }
@@ -254,6 +255,26 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
     setPolls(p => [...p, poll]);
     sendChat('📊 Polling baru telah dibuat! Silakan cek tab Polls.');
   }, [sendChat]);
+
+  const handlePollVote = useCallback((pollId: string, optionIds: string[]) => {
+    setPolls(p => p.map(poll => {
+      if (poll.id !== pollId) return poll;
+      const newVoters: Record<string, string[]> = { ...poll.voters, [localParticipant.identity]: optionIds };
+      const newOptions = poll.options.map(opt => {
+        let count = 0;
+        Object.values(newVoters).forEach((opts) => { if (Array.isArray(opts) && opts.includes(opt.id)) count++; });
+        return { ...opt, votes: count };
+      });
+      return { ...poll, voters: newVoters, options: newOptions };
+    }));
+    pub({ type: 'poll_vote', pollId, optionIds, identity: localParticipant.identity });
+  }, [pub, localParticipant.identity]);
+
+  const handlePollDelete = useCallback((pollId: string) => {
+    setPolls(p => p.filter(poll => poll.id !== pollId));
+    pub({ type: 'poll_delete', pollId });
+    setChatMsgs(p => [...p, { id: Date.now().toString() + Math.random().toString(), text: '🗑️ Polling ini telah dihapus.', senderName: 'Sistem', senderIdentity: 'system', ts: Date.now() }]);
+  }, [pub]);
 
   // === LIVE CAPTIONS ===
   useEffect(() => {
@@ -564,7 +585,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
           <ChatPanel messages={chatMsgs} localIdentity={localParticipant.identity} localName={localParticipant.name || 'Anonim'}
             onSend={sendChat} onEdit={editChat} onDelete={deleteChat} onClose={() => setActivePanel(null)}
             disabled={!isHost && !perms.allowChat && !admins.has(localParticipant.identity)}
-            polls={polls} isHost={isHost || admins.has(localParticipant.identity)} pub={pub} allowPolls={perms.allowPolls} onPollCreate={handlePollCreate} admins={admins} />
+            polls={polls} isHost={isHost || admins.has(localParticipant.identity)} pub={pub} allowPolls={perms.allowPolls} onPollCreate={handlePollCreate} onPollVote={handlePollVote} onPollDelete={handlePollDelete} admins={admins} />
         </div>
 
         {activePanel && activePanel !== 'chat' && (
