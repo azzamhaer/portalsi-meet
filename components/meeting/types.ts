@@ -8,6 +8,8 @@ export interface MeetingProps {
   isHost: boolean;
   password?: string;
   onLeave: () => void;
+  initialMic?: boolean;
+  initialCam?: boolean;
 }
 
 export interface ShellProps {

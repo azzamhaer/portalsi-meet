@@ -42,7 +42,7 @@ const baseRoomOptions: RoomOptions = {
   reconnectPolicy: { nextRetryDelayInMs: (ctx) => Math.min(1000 * Math.pow(2, ctx.retryCount), 10000) },
 };
 
-export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLeave }: MeetingProps) {
+export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLeave, initialMic, initialCam }: MeetingProps) {
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [videoQuality, setVideoQuality] = useState<'highest' | 'balanced' | 'lowest'>(
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'lowest' : 'balanced'
@@ -65,7 +65,7 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
   if (fatalError) return <ErrScr title="Koneksi Terputus" msg={fatalError} onLeave={onLeave} />;
   return (
     <LiveKitRoom token={token} serverUrl={wsUrl} connect options={roomOptions}
-      video audio data-lk-theme="default"
+      video={initialCam ?? true} audio={initialMic ?? true} data-lk-theme="default"
       onDisconnected={(r) => {
         if (manualDisconnectRef.current) return;
         if (r === DisconnectReason.ROOM_DELETED) setFatalError('Rapat ini telah diakhiri oleh Host.');
@@ -105,6 +105,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const [noiseSuppression, setNoiseSuppression] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
   const [endMessage, setEndMessage] = useState<{ title: string, msg: string } | null>(null);
+  const [globalPinnedIdentity, setGlobalPinnedIdentity] = useState<string | null>(null);
 
   const [timer, setTimer] = useState<{ endTime: number; duration: number } | null>(null);
   const [showTimerModal, setShowTimerModal] = useState(false);
@@ -131,12 +132,14 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const subtitlesRef = useRef(subtitles);
   const raisedHandsRef = useRef(raisedHands);
   const captionsOnRef = useRef(captionsOn);
+  const globalPinnedIdentityRef = useRef(globalPinnedIdentity);
 
   useEffect(() => { timerRef.current = timer; adminsRef.current = admins; superAdminRef.current = superAdmin; }, [timer, admins, superAdmin]);
   useEffect(() => { handRaisedRef.current = handRaised; }, [handRaised]);
   useEffect(() => { subtitlesRef.current = subtitles; }, [subtitles]);
   useEffect(() => { raisedHandsRef.current = raisedHands; }, [raisedHands]);
   useEffect(() => { captionsOnRef.current = captionsOn; }, [captionsOn]);
+  useEffect(() => { globalPinnedIdentityRef.current = globalPinnedIdentity; }, [globalPinnedIdentity]);
 
   useEffect(() => {
     if (noiseSuppression !== krisp.isNoiseFilterEnabled) {
@@ -195,8 +198,10 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
           if (d.action === 'kick_all' || d.action === 'end_meeting') { onManualDisconnect(); room.disconnect(); setEndMessage({ title: 'Rapat Selesai', msg: 'Rapat ini telah diakhiri oleh Host.' }); }
           if (d.action === 'promote') setAdmins(prev => new Set(prev).add(d.target));
           if (d.action === 'demote') setAdmins(prev => { const n = new Set(prev); n.delete(d.target); return n; });
+          if (d.action === 'pin_global') setGlobalPinnedIdentity(d.target);
+          if (d.action === 'unpin_global') setGlobalPinnedIdentity(null);
         }
-        else if (d.type === 'admin_sync') { setAdmins(new Set(d.admins)); if (d.superAdmin) setSuperAdmin(d.superAdmin); }
+        else if (d.type === 'admin_sync') { setAdmins(new Set(d.admins)); if (d.superAdmin) setSuperAdmin(d.superAdmin); if (d.pinnedIdentity) setGlobalPinnedIdentity(d.pinnedIdentity); }
         else if (d.type === 'new_super_admin') { setSuperAdmin(d.target); }
         else if (d.type === 'poll_create') { setPolls(p => [...p, d.poll]); if (activePanelRef.current !== 'chat') setUnreadCount(c => c + 1); }
         else if (d.type === 'poll_vote') { 
@@ -233,7 +238,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         // Host syncs state to new joiners
         if (isHost) {
           setTimeout(() => {
-             room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'admin_sync', admins: Array.from(adminsRef.current), superAdmin: superAdminRef.current })), { reliable: true });
+             room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'admin_sync', admins: Array.from(adminsRef.current), superAdmin: superAdminRef.current, pinnedIdentity: globalPinnedIdentityRef.current })), { reliable: true });
              if (timerRef.current) room.localParticipant.publishData(enc.current.encode(JSON.stringify({ type: 'timer_start', endTime: timerRef.current.endTime, duration: timerRef.current.duration })), { reliable: true });
           }, 1500);
         }
@@ -564,7 +569,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
       <div className="relative flex flex-1 overflow-hidden pb-[80px]">
         <div className="relative flex-1 overflow-hidden">
           <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight}
-            focusedIdentity={focusedIdentity} onFocusParticipant={setFocusedIdentity} />
+            focusedIdentity={focusedIdentity} onFocusParticipant={setFocusedIdentity} globalPinnedIdentity={globalPinnedIdentity} />
           
           {/* Subtitles Overlay */}
           {subtitles.size > 0 && (
@@ -603,6 +608,11 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 localIdentity={localParticipant.identity} 
                 onPromote={handlePromoteAction}
                 onDemote={handleDemoteAction}
+                globalPinnedIdentity={globalPinnedIdentity}
+                onPinGlobal={(id) => { pub({ type: 'host_action', action: 'pin_global', target: id }); setGlobalPinnedIdentity(id); }}
+                onUnpinGlobal={() => { pub({ type: 'host_action', action: 'unpin_global' }); setGlobalPinnedIdentity(null); }}
+                focusedIdentity={focusedIdentity}
+                onFocusParticipant={setFocusedIdentity}
               />}
               {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost || admins.has(localParticipant.identity)} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || admins.has(localParticipant.identity) || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
               {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost || admins.has(localParticipant.identity)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
@@ -674,11 +684,28 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn }
   const allTracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }, { source: Track.Source.ScreenShare, withPlaceholder: false }], { onlySubscribed: false });
   
   const tracks = pipHideSelf ? allTracks.filter(t => t.participant.identity !== localParticipant.identity) : allTracks;
+  const screenShareTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
+  const otherTracks = tracks.filter(t => t.source !== Track.Source.ScreenShare);
 
   return (
     <div className="w-screen h-screen overflow-hidden text-white flex flex-col relative group" style={{ background: '#0a0a0f' }}>
        <div className="flex-1 min-h-0 relative p-1" onClick={() => setShowSettings(false)}>
-          {pipViewMode === 'gallery' ? (
+          {screenShareTrack ? (
+             <div className="flex flex-col md:flex-row h-full w-full gap-1">
+                <div className="flex-1 bg-black rounded-lg overflow-hidden relative">
+                   <ParticipantTile trackRef={screenShareTrack} className="h-full w-full [&>video]:object-contain" />
+                </div>
+                {otherTracks.length > 0 && (
+                   <div className="w-full md:w-1/3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-y-auto min-h-[80px] md:min-h-0 shrink-0">
+                      {otherTracks.map(t => (
+                         <div key={`${t.participant.identity}-${t.source}`} className="aspect-video bg-black rounded-lg overflow-hidden shrink-0 w-24 md:w-full">
+                            <ParticipantTile trackRef={t} className="h-full w-full" />
+                         </div>
+                      ))}
+                   </div>
+                )}
+             </div>
+          ) : pipViewMode === 'gallery' ? (
             <GridLayout tracks={tracks.slice(0, 16)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
               <ParticipantTile />
             </GridLayout>

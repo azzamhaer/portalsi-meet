@@ -3,17 +3,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParticipants, useLocalParticipant, useTracks } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { Users, X, Crown, Search, Mic, MicOff, Video, VideoOff, ScreenShare, Check, XCircle, Clock, Bell } from 'lucide-react';
+import { Users, X, Crown, Search, Mic, MicOff, Video, VideoOff, ScreenShare, Check, XCircle, Clock, Bell, Pin, PinOff } from 'lucide-react';
 
 interface WaitingUser { waitingId: string; name: string; ts: number; }
 
 export function ParticipantsPanel({
-  isHost, isSuperAdmin, roomId, onClose, onStopShare, admins, pub, localIdentity, onPromote, onDemote
+  isHost, isSuperAdmin, roomId, onClose, onStopShare, admins, pub, localIdentity, onPromote, onDemote,
+  globalPinnedIdentity, onPinGlobal, onUnpinGlobal, focusedIdentity, onFocusParticipant
 }: {
   isHost: boolean; isSuperAdmin?: boolean; roomId: string; onClose: () => void;
   onStopShare?: (identity: string) => void;
   admins?: Set<string>; pub?: (d: any) => void; localIdentity?: string;
   onPromote?: (id: string) => void; onDemote?: (id: string) => void;
+  globalPinnedIdentity?: string | null; onPinGlobal?: (id: string) => void; onUnpinGlobal?: () => void;
+  focusedIdentity?: string | null; onFocusParticipant?: (id: string | null) => void;
 }) {
   const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
@@ -138,6 +141,8 @@ export function ParticipantsPanel({
           const camOn = !!cam && !cam.isMuted;
           const color = nameColor(p.name || 'A');
           const isSharing = tracks.some(t => t.participant.identity === p.identity);
+          const isPinnedForMe = focusedIdentity === p.identity;
+          const isPinnedGlobal = globalPinnedIdentity === p.identity;
 
           return (
             <div key={p.identity} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] transition-all group">
@@ -153,8 +158,22 @@ export function ParticipantsPanel({
                 </p>
               </div>
               <div className="flex items-center gap-1.5">
+                {isPinnedGlobal && <span className="p-1 rounded-full text-blue-400 bg-blue-400/10" title="Di-pin untuk Semua"><Pin className="h-3.5 w-3.5" /></span>}
+                {isPinnedForMe && !isPinnedGlobal && <span className="p-1 rounded-full text-white/50 bg-white/10" title="Di-pin untuk Anda"><Pin className="h-3.5 w-3.5" /></span>}
                 <span className={`p-1 rounded-full ${micOn ? 'text-white/50' : 'text-red-400/70 bg-red-400/10'}`}>{micOn ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}</span>
                 <span className={`p-1 rounded-full ${camOn ? 'text-white/50' : 'text-red-400/70 bg-red-400/10'}`}>{camOn ? <Video className="h-3.5 w-3.5" /> : <VideoOff className="h-3.5 w-3.5" />}</span>
+              </div>
+              <div className="hidden group-hover:flex items-center gap-1">
+                {onFocusParticipant && (
+                  <button onClick={() => onFocusParticipant(isPinnedForMe ? null : p.identity)} className="rounded-full p-1.5 text-white/50 hover:text-white hover:bg-white/10 transition-all" title={isPinnedForMe ? "Unpin untuk Saya" : "Pin untuk Saya"}>
+                    {isPinnedForMe ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                  </button>
+                )}
+                {isSuperAdmin && onPinGlobal && onUnpinGlobal && (
+                  <button onClick={() => isPinnedGlobal ? onUnpinGlobal() : onPinGlobal(p.identity)} className="rounded-full p-1.5 text-blue-400 hover:bg-blue-400/10 transition-all" title={isPinnedGlobal ? "Unpin untuk Semua" : "Pin untuk Semua"}>
+                    {isPinnedGlobal ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                  </button>
+                )}
               </div>
               {isHost && !isLocal && (
                 <div className="hidden group-hover:flex items-center gap-1">
