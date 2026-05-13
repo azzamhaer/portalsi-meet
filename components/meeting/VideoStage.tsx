@@ -91,6 +91,8 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
   }
 
   // Main + side strip
+  const isScreenShareDesktop = mainTrack?.source === Track.Source.ScreenShare;
+
   return (
     <div className={`relative h-full w-full flex flex-col md:flex-row gap-2 p-2 ${fc}`}>
       {mainTrack && (
@@ -104,8 +106,60 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
           )}
         </div>
       )}
+      {/* DESKTOP SCREEN SHARE SIDEBAR */}
+      {isScreenShareDesktop && (
+        <div className="hidden md:flex flex-col gap-2 w-64 lg:w-[320px] shrink-0 meet-scrollbar overflow-y-auto pr-1">
+          {/* Top: Sharer's Camera */}
+          {(() => {
+            const sharerIdentity = mainTrack.participant.identity;
+            const sharerCam = tracks.find(t => t.participant.identity === sharerIdentity && t.source === Track.Source.Camera);
+            if (sharerCam) {
+              return (
+                <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.4)] bg-black shrink-0 relative cursor-pointer hover:ring-2 hover:ring-[#8ab4f8]/40 transition-all" onClick={() => onFocusParticipant(sharerIdentity === focusedIdentity ? null : sharerIdentity)}>
+                  <ParticipantTile trackRef={sharerCam} className="h-full w-full" />
+                </div>
+              );
+            }
+            return null;
+          })()}
+          
+          {/* Bottom: Grid of others */}
+          {(() => {
+            const sharerIdentity = mainTrack.participant.identity;
+            const gridTracks = (hideSelf ? remoteTracks : tracks.filter(t => t.source === Track.Source.Camera)).filter(t => t.participant.identity !== sharerIdentity && t.source === Track.Source.Camera);
+            
+            if (gridTracks.length === 0) return null;
+            
+            const displayTracks = gridTracks.slice(0, 4);
+            const remainingCount = gridTracks.length - 4;
+            
+            return (
+              <div className={`grid gap-2 ${displayTracks.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} shrink-0`}>
+                {displayTracks.map((tr, idx) => {
+                  const isLast = idx === 3;
+                  return (
+                    <div key={`${tr.participant.identity}-${tr.source}`} 
+                      className={`w-full ${displayTracks.length === 1 ? 'aspect-video' : 'aspect-[4/3]'} rounded-2xl overflow-hidden bg-black relative cursor-pointer shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:ring-2 hover:ring-[#8ab4f8]/40 transition-all`}
+                      onClick={() => onFocusParticipant(tr.participant.identity === focusedIdentity ? null : tr.participant.identity)}>
+                      <ParticipantTile trackRef={tr} className="h-full w-full" />
+                      {isLast && remainingCount > 0 && (
+                        <div className="absolute inset-0 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center text-white z-10 hover:bg-black/80 transition-all">
+                          <span className="text-xl lg:text-2xl font-bold">+{remainingCount}</span>
+                          <span className="text-[10px] lg:text-xs text-white/70">lainnya</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* STANDARD SIDEBAR OR MOBILE SCREEN SHARE */}
       {stripTracks.length > 0 && (
-        <div className="flex md:flex-col gap-2 md:w-48 lg:w-56 overflow-x-auto md:overflow-y-auto md:overflow-x-hidden meet-scrollbar shrink-0">
+        <div className={`flex ${isScreenShareDesktop ? 'md:hidden' : 'md:flex-col'} gap-2 md:w-48 lg:w-56 overflow-x-auto md:overflow-y-auto md:overflow-x-hidden meet-scrollbar shrink-0`}>
           {stripTracks.map(tr => (
             <div key={`${tr.participant.identity}-${tr.source}`}
               className="pip-container shrink-0 w-36 h-24 md:w-full md:h-32 cursor-pointer hover:ring-2 hover:ring-[#8ab4f8]/40 rounded-2xl transition-all overflow-hidden relative"
@@ -115,7 +169,12 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
           ))}
         </div>
       )}
-      {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} />}
+      
+      {!hideSelf && localCam && (
+        <div className={isScreenShareDesktop ? 'md:hidden' : ''}>
+          <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} />
+        </div>
+      )}
     </div>
   );
 }

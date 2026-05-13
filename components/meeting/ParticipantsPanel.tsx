@@ -9,7 +9,7 @@ interface WaitingUser { waitingId: string; name: string; ts: number; }
 
 export function ParticipantsPanel({
   isHost, isSuperAdmin, roomId, onClose, onStopShare, admins, pub, localIdentity, onPromote, onDemote,
-  globalPinnedIdentity, onPinGlobal, onUnpinGlobal, focusedIdentity, onFocusParticipant
+  globalPinnedIdentity, onPinGlobal, onUnpinGlobal, focusedIdentity, onFocusParticipant, superAdminIdentity
 }: {
   isHost: boolean; isSuperAdmin?: boolean; roomId: string; onClose: () => void;
   onStopShare?: (identity: string) => void;
@@ -17,6 +17,7 @@ export function ParticipantsPanel({
   onPromote?: (id: string) => void; onDemote?: (id: string) => void;
   globalPinnedIdentity?: string | null; onPinGlobal?: (id: string) => void; onUnpinGlobal?: () => void;
   focusedIdentity?: string | null; onFocusParticipant?: (id: string | null) => void;
+  superAdminIdentity?: string | null;
 }) {
   const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
@@ -133,8 +134,8 @@ export function ParticipantsPanel({
       <div className="flex-1 overflow-y-auto meet-scrollbar px-4 pb-4 space-y-1">
         {filtered.map(p => {
           const isLocal = p.identity === localParticipant.identity;
-          const isTheHost = p.identity.startsWith('host-') || admins?.has(p.identity);
-          const isRealSuperAdmin = p.identity.startsWith('host-');
+          const isRealSuperAdmin = superAdminIdentity ? p.identity === superAdminIdentity : p.identity.startsWith('host-');
+          const isTheHost = isRealSuperAdmin || p.identity.startsWith('host-') || admins?.has(p.identity);
           const mic = p.getTrackPublication(Track.Source.Microphone);
           const cam = p.getTrackPublication(Track.Source.Camera);
           const micOn = !!mic && !mic.isMuted;

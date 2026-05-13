@@ -115,7 +115,31 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
+  const participants = useParticipants();
   const krisp = useKrispNoiseFilter();
+
+  const activeSuperAdmin = useMemo(() => {
+    const originalHost = participants.find(p => p.identity.startsWith('host-'));
+    if (originalHost) return originalHost.identity;
+
+    if (superAdmin && superAdmin !== 'super_admin' && participants.some(p => p.identity === superAdmin)) {
+      return superAdmin;
+    }
+
+    if (participants.length > 0) {
+      const sorted = [...participants].sort((a, b) => {
+        const timeA = a.joinedAt?.getTime() || 0;
+        const timeB = b.joinedAt?.getTime() || 0;
+        if (timeA !== timeB) return timeA - timeB;
+        return a.identity.localeCompare(b.identity);
+      });
+      return sorted[0].identity;
+    }
+    return null;
+  }, [participants, superAdmin]);
+
+  const isAmIAdmin = isHost || admins.has(localParticipant.identity) || activeSuperAdmin === localParticipant.identity;
+
   const pipRef = useRef<any>(null);
   const chatRef = useRef<ChatMsg[]>([]);
   const activePanelRef = useRef(activePanel);
@@ -191,8 +215,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         else if (d.type === 'transcription') { if (captionsOnRef.current) { setSubtitles(prev => { const next = new Map(prev); next.set(d.identity, { ...d, updatedAt: Date.now() }); return next; }); } }
         else if (d.type === 'permissions') { setPerms(d.perms); }
         else if (d.type === 'host_action') {
-          if (d.action === 'mute_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setMicrophoneEnabled(false);
-          if (d.action === 'mute_video_all' && (!isHost && !admins.has(localParticipant.identity))) localParticipant.setCameraEnabled(false);
+          if (d.action === 'mute_all' && (!isAmIAdmin)) localParticipant.setMicrophoneEnabled(false);
+          if (d.action === 'mute_video_all' && (!isAmIAdmin)) localParticipant.setCameraEnabled(false);
           if (d.action === 'stop_share' && d.target === localParticipant.identity) { const st = localParticipant.getTrackPublication(Track.Source.ScreenShare); if (st?.track) localParticipant.unpublishTrack(st.track); }
           if (d.action === 'kick' && d.target === localParticipant.identity) { onManualDisconnect(); room.disconnect(); setEndMessage({ title: 'Akses Ditolak', msg: 'Anda telah dikeluarkan dari rapat.' }); }
           if (d.action === 'kick_all' || d.action === 'end_meeting') { onManualDisconnect(); room.disconnect(); setEndMessage({ title: 'Rapat Selesai', msg: 'Rapat ini telah diakhiri oleh Host.' }); }
@@ -502,7 +526,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   };
 
   const handleLeaveAction = () => {
-    if (superAdmin === localParticipant.identity || (superAdmin === 'super_admin' && isHost)) {
+    if (activeSuperAdmin === localParticipant.identity || (superAdmin === 'super_admin' && isHost)) {
       const otherAdmins = Array.from(admins).filter(id => id !== localParticipant.identity && id !== 'super_admin' && room.remoteParticipants.has(id));
       if (otherAdmins.length > 0) {
         pub({ type: 'new_super_admin', target: otherAdmins[0] });
@@ -563,7 +587,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
 
       {/* Timer Overlay */}
       {timer && (
-        <TimerOverlay endTime={timer.endTime} isHost={isHost || admins.has(localParticipant.identity)} onStop={handleStopTimer} />
+        <TimerOverlay endTime={timer.endTime} isHost={isAmIAdmin} onStop={handleStopTimer} />
       )}
 
       <div className="relative flex flex-1 overflow-hidden pb-[80px]">
@@ -589,8 +613,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
              className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
           <ChatPanel messages={chatMsgs} localIdentity={localParticipant.identity} localName={localParticipant.name || 'Anonim'}
             onSend={sendChat} onEdit={editChat} onDelete={deleteChat} onClose={() => setActivePanel(null)}
-            disabled={!isHost && !perms.allowChat && !admins.has(localParticipant.identity)}
-            polls={polls} isHost={isHost || admins.has(localParticipant.identity)} pub={pub} allowPolls={perms.allowPolls} onPollCreate={handlePollCreate} onPollVote={handlePollVote} onPollDelete={handlePollDelete} admins={admins} />
+            disabled={!isAmIAdmin && !perms.allowChat}
+            polls={polls} isHost={isAmIAdmin} pub={pub} allowPolls={perms.allowPolls} onPollCreate={handlePollCreate} onPollVote={handlePollVote} onPollDelete={handlePollDelete} admins={admins} />
         </div>
 
         {activePanel && activePanel !== 'chat' && (
@@ -598,8 +622,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
             <div className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setActivePanel(null)} />
             <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:my-2 md:mr-2 md:shrink-0">
               {activePanel === 'participants' && <ParticipantsPanel 
-                isHost={isHost || admins.has(localParticipant.identity)} 
-                isSuperAdmin={isHost || admins.has(localParticipant.identity)}
+                isHost={isAmIAdmin} 
+                isSuperAdmin={activeSuperAdmin === localParticipant.identity}
                 roomId={roomId} 
                 onClose={() => setActivePanel(null)} 
                 onStopShare={stopShare} 
@@ -613,9 +637,10 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 onUnpinGlobal={() => { pub({ type: 'host_action', action: 'unpin_global' }); setGlobalPinnedIdentity(null); }}
                 focusedIdentity={focusedIdentity}
                 onFocusParticipant={setFocusedIdentity}
+                superAdminIdentity={activeSuperAdmin}
               />}
-              {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isHost || admins.has(localParticipant.identity)} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isHost || admins.has(localParticipant.identity) || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
-              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isHost || admins.has(localParticipant.identity)} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
+              {activePanel === 'info' && <InfoPanel roomId={roomId} isHost={isAmIAdmin} password={password} startTime={meetingStartTime} onClose={() => setActivePanel(null)} allowRename={isAmIAdmin || perms.allowRename} onRename={(n) => { localParticipant.setName(n); pub({ type: 'rename', identity: localParticipant.identity, name: n }); }} />}
+              {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} enhanceLight={enhanceLight} onToggleEnhanceLight={() => setEnhanceLight(v => !v)} isHost={isAmIAdmin} perms={perms} onPermsChange={broadcastPerms} onMuteAll={muteAll} onMuteVideoAll={muteVideoAll} noiseSuppression={noiseSuppression} onToggleNoiseSuppression={() => setNoiseSuppression(v => !v)} captionsOn={captionsOn} onToggleCaptions={() => setCaptionsOn(!captionsOn)} videoQuality={videoQuality} onVideoQualityChange={setVideoQuality} />}
               {activePanel === 'view' && <ViewPanel viewMode={viewMode} onViewModeChange={setViewMode} hideSelf={hideSelf} onToggleHideSelf={() => setHideSelf(v => !v)} onClose={() => setActivePanel(null)} />}
               {activePanel === 'whiteboard' && <WhiteboardPanel roomId={roomId} onClose={() => setActivePanel(null)} allowWhiteboard={perms.allowWhiteboard} />}
             </div>
@@ -627,7 +652,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
       <BottomBar roomId={roomId} activePanel={activePanel} onPanelChange={setActivePanel}
         onLeave={() => setShowLeaveConfirm(true)} onReaction={sendReaction}
         handRaised={handRaised} onToggleHand={toggleHand} unreadCount={unreadCount}
-        permissions={perms} isHost={isHost || admins.has(localParticipant.identity)} isRecording={isRecording} onRecordToggle={toggleRecord}
+        permissions={perms} isHost={isAmIAdmin} isRecording={isRecording} onRecordToggle={toggleRecord}
         onTimerClick={handleTimerClick} timerActive={!!timer} hasMicError={hasMicError} hasCamError={hasCamError} />
 
       {/* Timer Modal */}
@@ -650,7 +675,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                 <button onClick={() => setShowLeaveConfirm(false)} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white/80 bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.06] transition-all active:scale-95">Batal</button>
                 <button onClick={handleLeaveAction} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-400 transition-all active:scale-95 shadow-[0_0_20px_rgba(234,67,53,0.3)]">Tinggalkan</button>
               </div>
-              {(isHost || admins.has(localParticipant.identity)) && (
+              {(isAmIAdmin) && (
                 <button onClick={handleEndForEveryone} className="w-full py-3 rounded-xl text-sm font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all active:scale-95">Akhiri untuk Semua</button>
               )}
             </div>
