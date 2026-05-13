@@ -21,7 +21,8 @@ export function BottomBar({
   unreadCount, permissions, isHost,
   isRecording, onRecordToggle,
   captionsOn, onToggleCaptions,
-  onTimerClick, timerActive
+  onTimerClick, timerActive,
+  hasMicError, hasCamError
 }: {
   roomId: string; activePanel: PanelType; onPanelChange: (p: PanelType) => void; onLeave: () => void;
   onReaction: (emoji: string) => void; handRaised: boolean; onToggleHand: () => void;
