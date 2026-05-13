@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { MeetingRoom } from './MeetingRoom';
 import { PreJoinScreen } from './PreJoinScreen';
 
-interface ConnectionInfo { token: string; wsUrl: string; name: string; isHost: boolean; password?: string; initialMic?: boolean; initialCam?: boolean; }
+interface ConnectionInfo { token: string; wsUrl: string; name: string; isHost: boolean; password?: string; initialMic?: boolean; initialCam?: boolean; hasMicError?: boolean; hasCamError?: boolean; }
 type State = 'loading' | 'need-name' | 'need-password' | 'joining' | 'pre-join' | 'waiting-lobby' | 'connected' | 'error' | 'not-found';
 
 function getBrowserId(): string {
@@ -117,16 +117,16 @@ export function RoomClient({ roomId }: { roomId: string }) {
     performJoin(name.trim(), password || undefined);
   }
 
-  function handlePreJoinConnect(result: { micEnabled: boolean, camEnabled: boolean }) {
+  function handlePreJoinConnect(result: { micEnabled: boolean, camEnabled: boolean, hasMicError?: boolean, hasCamError?: boolean }) {
     // Token already in conn — connect now
-    setConn(prev => prev ? { ...prev, initialMic: result.micEnabled, initialCam: result.camEnabled } : null);
+    setConn(prev => prev ? { ...prev, initialMic: result.micEnabled, initialCam: result.camEnabled, hasMicError: result.hasMicError, hasCamError: result.hasCamError } : null);
     setState('connected');
   }
 
   if (state === 'loading' || state === 'joining') return <LoadingScreen label={state === 'joining' ? 'Menghubungkan…' : 'Memuat…'} />;
   if (state === 'not-found') return <ErrorScreen title="Ruang tidak ditemukan" message="Room ID salah atau meeting sudah berakhir." />;
   if (state === 'error') return <ErrorScreen title="Terjadi kesalahan" message={error || 'Unknown error.'} />;
-  if (state === 'connected' && conn) return <MeetingRoom roomId={roomId} token={conn.token} wsUrl={conn.wsUrl} name={conn.name} isHost={conn.isHost} password={conn.password} onLeave={() => router.push('/')} initialMic={conn.initialMic} initialCam={conn.initialCam} />;
+  if (state === 'connected' && conn) return <MeetingRoom roomId={roomId} token={conn.token} wsUrl={conn.wsUrl} name={conn.name} isHost={conn.isHost} password={conn.password} onLeave={() => router.push('/')} initialMic={conn.initialMic} initialCam={conn.initialCam} hasMicError={conn.hasMicError} hasCamError={conn.hasCamError} />;
 
   if (state === 'pre-join') {
     return <PreJoinScreen roomId={roomId} name={name} onJoin={handlePreJoinConnect} />;

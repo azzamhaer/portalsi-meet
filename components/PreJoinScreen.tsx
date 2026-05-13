@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Video as VideoIcon, VideoOff, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Video as VideoIcon, VideoOff, Loader2, TriangleAlert } from 'lucide-react';
 
 interface PreJoinResult {
   micEnabled: boolean;
   camEnabled: boolean;
+  hasMicError: boolean;
+  hasCamError: boolean;
 }
 
 export function PreJoinScreen({ roomId, name, onJoin, isWaiting, waitingStatus }: {
@@ -16,8 +18,10 @@ export function PreJoinScreen({ roomId, name, onJoin, isWaiting, waitingStatus }
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(true);
+  const [micOn, setMicOn] = useState(false);
+  const [camOn, setCamOn] = useState(false);
+  const [hasMicError, setHasMicError] = useState(false);
+  const [hasCamError, setHasCamError] = useState(false);
   const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] });
 
   useEffect(() => {
@@ -29,20 +33,48 @@ export function PreJoinScreen({ roomId, name, onJoin, isWaiting, waitingStatus }
   }, []);
 
   async function startPreview() {
+    let audioStream: MediaStream | null = null;
+    let videoStream: MediaStream | null = null;
+
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      streamRef.current = s;
-      if (videoRef.current) videoRef.current.srcObject = s;
-    } catch {}
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicOn(true);
+      setHasMicError(false);
+    } catch {
+      setHasMicError(true);
+      setMicOn(false);
+    }
+
+    try {
+      videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setCamOn(true);
+      setHasCamError(false);
+    } catch {
+      setHasCamError(true);
+      setCamOn(false);
+    }
+
+    if (audioStream || videoStream) {
+      const tracks = [...(audioStream?.getTracks() || []), ...(videoStream?.getTracks() || [])];
+      if (tracks.length > 0) {
+        const combined = new MediaStream(tracks);
+        streamRef.current = combined;
+        if (videoRef.current && videoStream) {
+          videoRef.current.srcObject = combined;
+        }
+      }
+    }
   }
 
   function toggleMic() {
+    if (hasMicError) return;
     const next = !micOn;
     setMicOn(next);
     streamRef.current?.getAudioTracks().forEach(t => { t.enabled = next; });
   }
 
   function toggleCam() {
+    if (hasCamError) return;
     const next = !camOn;
     setCamOn(next);
     streamRef.current?.getVideoTracks().forEach(t => { t.enabled = next; });
@@ -64,13 +96,13 @@ export function PreJoinScreen({ roomId, name, onJoin, isWaiting, waitingStatus }
           <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 text-sm text-white/90 font-medium">{name}</div>
           {/* Controls */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3">
-            <button onClick={toggleMic}
-              className={`h-12 w-12 rounded-full flex items-center justify-center transition-all ${micOn ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 text-white'}`}>
-              {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+            <button onClick={toggleMic} disabled={hasMicError}
+              className={`h-12 w-12 rounded-full flex items-center justify-center transition-all ${hasMicError ? 'bg-yellow-500/20 text-yellow-500 opacity-80 cursor-not-allowed' : micOn ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 text-white'}`}>
+              {hasMicError ? <TriangleAlert className="h-5 w-5" /> : micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
             </button>
-            <button onClick={toggleCam}
-              className={`h-12 w-12 rounded-full flex items-center justify-center transition-all ${camOn ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 text-white'}`}>
-              {camOn ? <VideoIcon className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+            <button onClick={toggleCam} disabled={hasCamError}
+              className={`h-12 w-12 rounded-full flex items-center justify-center transition-all ${hasCamError ? 'bg-yellow-500/20 text-yellow-500 opacity-80 cursor-not-allowed' : camOn ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 text-white'}`}>
+              {hasCamError ? <TriangleAlert className="h-5 w-5" /> : camOn ? <VideoIcon className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
             </button>
           </div>
         </div>
@@ -96,7 +128,7 @@ export function PreJoinScreen({ roomId, name, onJoin, isWaiting, waitingStatus }
               )}
             </div>
           ) : (
-            <button onClick={() => onJoin({ micEnabled: micOn, camEnabled: camOn })}
+            <button onClick={() => onJoin({ micEnabled: micOn, camEnabled: camOn, hasMicError, hasCamError })}
               className="w-full py-4 rounded-2xl text-base font-bold bg-[#8ab4f8] hover:bg-[#aecbfa] text-black transition-all active:scale-95 shadow-[0_0_24px_rgba(138,180,248,0.3)]">
               Gabung Sekarang
             </button>

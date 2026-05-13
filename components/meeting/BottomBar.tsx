@@ -6,7 +6,7 @@ import { Track } from 'livekit-client';
 import {
   PhoneOff, Info, Users, MessageSquare, Settings, Hand, Smile,
   Copy, MoreVertical, LayoutGrid, ScreenShare, ScreenShareOff,
-  Mic, MicOff, Video, VideoOff, RefreshCcw, ZoomIn, Disc, PenTool, Timer
+  Mic, MicOff, Video, VideoOff, RefreshCcw, ZoomIn, Disc, PenTool, Timer, TriangleAlert
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 import type { PanelType } from './types';
@@ -29,6 +29,7 @@ export function BottomBar({
   isRecording?: boolean; onRecordToggle?: () => void;
   captionsOn?: boolean; onToggleCaptions?: () => void;
   onTimerClick?: () => void; timerActive?: boolean;
+  hasMicError?: boolean; hasCamError?: boolean;
 }) {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [copied, setCopied] = useState(false);
@@ -51,9 +52,11 @@ export function BottomBar({
   const canReact = isHost || permissions.allowReactions;
 
   const toggleMic = async () => {
+    if (hasMicError) return;
     try { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); setMicOn(!localParticipant.isMicrophoneEnabled); } catch {}
   };
   const toggleCam = async () => {
+    if (hasCamError) return;
     try { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); setCamOn(!localParticipant.isCameraEnabled); } catch {}
   };
   const toggleShare = async () => {
@@ -174,18 +177,18 @@ export function BottomBar({
         {/* CENTER — custom mic/cam/share buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2" onClick={e => e.stopPropagation()}>
           {/* Mic */}
-          <Tooltip text={isMicOn ? 'Matikan Mic (Ctrl+D)' : 'Nyalakan Mic (Ctrl+D)'}>
-            <button onClick={toggleMic}
-              className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!isMicOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
-              {isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+          <Tooltip text={hasMicError ? 'Mic tidak terdeteksi' : isMicOn ? 'Matikan Mic (Ctrl+D)' : 'Nyalakan Mic (Ctrl+D)'}>
+            <button onClick={toggleMic} disabled={hasMicError}
+              className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${hasMicError ? '!bg-yellow-500/20 !border-yellow-500/30 !text-yellow-400 opacity-80 cursor-not-allowed' : !isMicOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
+              {hasMicError ? <TriangleAlert className="h-5 w-5" /> : isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
             </button>
           </Tooltip>
 
           {/* Cam */}
-          <Tooltip text={isCamOn ? 'Matikan Kamera (Ctrl+E)' : 'Nyalakan Kamera (Ctrl+E)'}>
-            <button onClick={toggleCam}
-              className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${!isCamOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
-              {isCamOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+          <Tooltip text={hasCamError ? 'Kamera tidak terdeteksi' : isCamOn ? 'Matikan Kamera (Ctrl+E)' : 'Nyalakan Kamera (Ctrl+E)'}>
+            <button onClick={toggleCam} disabled={hasCamError}
+              className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${hasCamError ? '!bg-yellow-500/20 !border-yellow-500/30 !text-yellow-400 opacity-80 cursor-not-allowed' : !isCamOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
+              {hasCamError ? <TriangleAlert className="h-5 w-5" /> : isCamOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
             </button>
           </Tooltip>
 

@@ -72,7 +72,7 @@ export function HomeHero() {
     const id = normalizeRoomId(roomId);
     if (!isValidRoomId(id)) { setError('Room ID tidak valid.'); return; }
     if (!name.trim()) { setError('Nama tidak boleh kosong.'); return; }
-    sessionStorage.setItem(`lk-join-${id}`, JSON.stringify({ name: name.trim(), password: password || undefined }));
+    sessionStorage.setItem(`lk-join-${id}`, JSON.stringify({ name: name.trim() }));
     router.push(`/room/${id}`);
   }
 
@@ -209,9 +209,6 @@ export function HomeHero() {
                     placeholder="Contoh: ABCDEF" maxLength={6} autoComplete="off"
                     className="hp-input text-center uppercase tracking-[0.3em] font-semibold text-lg" />
                 </div>
-
-                <PwField label="Password (jika ada)" value={password} onChange={setPassword}
-                  showPw={showPw} toggle={() => setShowPw(v => !v)} placeholder="Masukkan password" />
 
                 {error && <ErrBox text={error} />}
 

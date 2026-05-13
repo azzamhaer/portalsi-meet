@@ -42,7 +42,7 @@ const baseRoomOptions: RoomOptions = {
   reconnectPolicy: { nextRetryDelayInMs: (ctx) => Math.min(1000 * Math.pow(2, ctx.retryCount), 10000) },
 };
 
-export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLeave, initialMic, initialCam }: MeetingProps) {
+export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLeave, initialMic, initialCam, hasMicError, hasCamError }: MeetingProps) {
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [videoQuality, setVideoQuality] = useState<'highest' | 'balanced' | 'lowest'>(
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'lowest' : 'balanced'
@@ -71,11 +71,11 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
         if (r === DisconnectReason.ROOM_DELETED) setFatalError('Rapat ini telah diakhiri oleh Host.');
         else if (r === DisconnectReason.PARTICIPANT_REMOVED) setFatalError('Anda telah dikeluarkan dari rapat.');
         else if (r === DisconnectReason.SERVER_SHUTDOWN) setFatalError('Koneksi terputus dari server.');
-        else onLeave();
+        else setFatalError(`Terputus dari rapat. Alasan: ${r || 'Koneksi terputus'}`);
       }}
-      onError={(e) => setFatalError(e.message)}
+      onError={(e) => setFatalError(`Terjadi kesalahan: ${e.message}`)}
       className="theme-meet h-dvh w-dvw overflow-hidden text-white flex flex-col" style={{ background: '#0a0a0f' }}>
-      <Shell roomId={roomId} isHost={isHost} password={password} onLeave={onLeave} videoQuality={videoQuality} setVideoQuality={setVideoQuality} onManualDisconnect={() => manualDisconnectRef.current = true} />
+      <Shell roomId={roomId} isHost={isHost} password={password} onLeave={onLeave} videoQuality={videoQuality} setVideoQuality={setVideoQuality} onManualDisconnect={() => manualDisconnectRef.current = true} hasMicError={hasMicError} hasCamError={hasCamError} />
       <RoomAudioRenderer /><ConnectionStateToast />
     </LiveKitRoom>
   );
@@ -84,7 +84,7 @@ function ErrScr({ title, msg, onLeave }: { title: string; msg: string; onLeave: 
   return <main className="theme-comic min-h-dvh flex items-center justify-center p-4"><div className="card max-w-md text-center"><h2 className="text-xl font-bold text-red-500">{title}</h2><p className="mt-2 text-ink-300">{msg}</p><button className="btn-primary mt-6 w-full" onClick={onLeave}>Kembali</button></div></main>;
 }
 
-function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQuality, onManualDisconnect }: { roomId: string; isHost: boolean; password?: string; onLeave: () => void; videoQuality: 'highest'|'balanced'|'lowest'; setVideoQuality: (q: 'highest'|'balanced'|'lowest')=>void; onManualDisconnect: () => void; }) {
+function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQuality, onManualDisconnect, hasMicError, hasCamError }: { roomId: string; isHost: boolean; password?: string; onLeave: () => void; videoQuality: 'highest'|'balanced'|'lowest'; setVideoQuality: (q: 'highest'|'balanced'|'lowest')=>void; onManualDisconnect: () => void; hasMicError?: boolean; hasCamError?: boolean; }) {
   const [activePanel, setActivePanel] = useState<PanelType>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('standard');
   const [hideSelf, setHideSelf] = useState(false);
@@ -628,7 +628,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         onLeave={() => setShowLeaveConfirm(true)} onReaction={sendReaction}
         handRaised={handRaised} onToggleHand={toggleHand} unreadCount={unreadCount}
         permissions={perms} isHost={isHost || admins.has(localParticipant.identity)} isRecording={isRecording} onRecordToggle={toggleRecord}
-        onTimerClick={handleTimerClick} timerActive={!!timer} />
+        onTimerClick={handleTimerClick} timerActive={!!timer} hasMicError={hasMicError} hasCamError={hasCamError} />
 
       {/* Timer Modal */}
       {showTimerModal && (
@@ -662,10 +662,12 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         <PipGrid 
           onLeave={() => { pipWindow.close(); setPipWindow(null); setShowLeaveConfirm(true); }}
           onChat={() => { window.focus(); setActivePanel('chat'); pipWindow.close(); setPipWindow(null); }}
-          onToggleMic={() => localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)}
-          onToggleCam={() => localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled)}
+          onToggleMic={() => { if (!hasMicError) localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled) }}
+          onToggleCam={() => { if (!hasCamError) localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled) }}
           isMicOn={localParticipant.isMicrophoneEnabled}
           isCamOn={localParticipant.isCameraEnabled}
+          hasMicError={hasMicError}
+          hasCamError={hasCamError}
         />, 
         pipWindow.document.body
       )}
@@ -673,9 +675,9 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   );
 }
 
-import { Mic, MicOff, Video, VideoOff, MessageSquare, PhoneOff, Settings, User, LayoutGrid } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, MessageSquare, PhoneOff, Settings, User, LayoutGrid, TriangleAlert } from 'lucide-react';
 
-function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn }: any) {
+function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, hasMicError, hasCamError }: any) {
   const [pipViewMode, setPipViewMode] = useState<'standard'|'gallery'>('standard');
   const [pipHideSelf, setPipHideSelf] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -732,8 +734,8 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn }
        )}
 
        <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={onToggleMic} className={`h-10 w-10 flex items-center justify-center rounded-full ${isMicOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400'} transition-all`}>{isMicOn ? <Mic className="h-4 w-4"/> : <MicOff className="h-4 w-4"/>}</button>
-          <button onClick={onToggleCam} className={`h-10 w-10 flex items-center justify-center rounded-full ${isCamOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400'} transition-all`}>{isCamOn ? <Video className="h-4 w-4"/> : <VideoOff className="h-4 w-4"/>}</button>
+          <button onClick={onToggleMic} disabled={hasMicError} className={`h-10 w-10 flex items-center justify-center rounded-full ${hasMicError ? 'bg-yellow-500/20 text-yellow-500 opacity-80 cursor-not-allowed' : isMicOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400'} transition-all`}>{hasMicError ? <TriangleAlert className="h-4 w-4" /> : isMicOn ? <Mic className="h-4 w-4"/> : <MicOff className="h-4 w-4"/>}</button>
+          <button onClick={onToggleCam} disabled={hasCamError} className={`h-10 w-10 flex items-center justify-center rounded-full ${hasCamError ? 'bg-yellow-500/20 text-yellow-500 opacity-80 cursor-not-allowed' : isCamOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400'} transition-all`}>{hasCamError ? <TriangleAlert className="h-4 w-4" /> : isCamOn ? <Video className="h-4 w-4"/> : <VideoOff className="h-4 w-4"/>}</button>
           <button onClick={onChat} className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all"><MessageSquare className="h-4 w-4"/></button>
           <button onClick={() => setShowSettings(!showSettings)} className={`h-10 w-10 flex items-center justify-center rounded-full transition-all ${showSettings ? 'bg-[#8ab4f8] text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}><Settings className="h-4 w-4"/></button>
           <button onClick={onLeave} className="h-10 w-10 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-400 transition-all"><PhoneOff className="h-4 w-4"/></button>

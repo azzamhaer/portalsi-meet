@@ -10,6 +10,8 @@ export interface MeetingProps {
   onLeave: () => void;
   initialMic?: boolean;
   initialCam?: boolean;
+  hasMicError?: boolean;
+  hasCamError?: boolean;
 }
 
 export interface ShellProps {
