@@ -7,13 +7,13 @@ import Draggable from 'react-draggable';
 import { Maximize2 } from 'lucide-react';
 import type { ViewMode } from './BottomBar';
 
-export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, onFocusParticipant, globalPinnedIdentity }: {
+export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, onFocusParticipant, globalPinnedIdentity, dominantSpeaker }: {
   viewMode: ViewMode; hideSelf: boolean; enhanceLight: boolean;
   focusedIdentity: string | null; onFocusParticipant: (id: string | null) => void;
   globalPinnedIdentity?: string | null;
+  dominantSpeaker?: string | null;
 }) {
   const { localParticipant } = useLocalParticipant();
-  const activeSpeakers = useSpeakingParticipants();
 
   const tracks = useTracks(
     [{ source: Track.Source.Camera, withPlaceholder: true }, { source: Track.Source.ScreenShare, withPlaceholder: false }],
@@ -51,17 +51,12 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
   }
 
   // === SPEAKER / STANDARD — determine main track ===
-  // Priority: screen share > clicked participant > first remote
-  const activeSpeakerId = activeSpeakers.length > 0 ? activeSpeakers[0].identity : null;
-  
   // Pinned track logic
-  // The user can click a participant to focus them (focusedIdentity).
-  // Admin can broadcast a global pin. We need a prop for it, but for now we just have focusedIdentity.
-  // We'll prioritize: focusedIdentity > globalPinnedIdentity > screenShareTrack > activeSpeaker > first remote
+  // We'll prioritize: focusedIdentity > globalPinnedIdentity > screenShareTrack > dominantSpeaker > first remote
   const mainTrack = (focusedIdentity ? remoteTracks.find(t => t.participant.identity === focusedIdentity && t.source !== Track.Source.ScreenShare) : null)
     || (globalPinnedIdentity ? remoteTracks.find(t => t.participant.identity === globalPinnedIdentity && t.source !== Track.Source.ScreenShare) : null)
     || screenShareTrack
-    || (activeSpeakerId ? remoteTracks.find(t => t.participant.identity === activeSpeakerId) : null)
+    || (dominantSpeaker ? remoteTracks.find(t => t.participant.identity === dominantSpeaker && t.source !== Track.Source.ScreenShare) : null)
     || (remoteTracks.length > 0 ? remoteTracks[0] : null);
 
   const stripTracks = remoteTracks.filter(t => t !== mainTrack && (mainTrack?.source === Track.Source.ScreenShare ? true : t.source !== Track.Source.ScreenShare)).slice(0, 11);

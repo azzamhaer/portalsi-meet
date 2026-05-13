@@ -154,9 +154,26 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const superAdminRef = useRef(superAdmin);
   const handRaisedRef = useRef(handRaised);
   const subtitlesRef = useRef(subtitles);
+  const subtitlesRef = useRef(subtitles);
   const raisedHandsRef = useRef(raisedHands);
   const captionsOnRef = useRef(captionsOn);
   const globalPinnedIdentityRef = useRef(globalPinnedIdentity);
+
+  // Debounced dominant speaker
+  const activeSpeakers = useSpeakingParticipants();
+  const [dominantSpeaker, setDominantSpeaker] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeSpeakers.length > 0) {
+      const topSpeaker = activeSpeakers[0].identity;
+      if (topSpeaker !== dominantSpeaker) {
+        const timer = setTimeout(() => {
+          setDominantSpeaker(topSpeaker);
+        }, 500); // Wait 500ms before switching dominant speaker
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [activeSpeakers, dominantSpeaker]);
 
   useEffect(() => { timerRef.current = timer; adminsRef.current = admins; superAdminRef.current = superAdmin; }, [timer, admins, superAdmin]);
   useEffect(() => { handRaisedRef.current = handRaised; }, [handRaised]);
@@ -573,8 +590,10 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
 
       {/* Raised hands bar */}
       {raisedHands.size > 0 && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 glass-panel rounded-2xl px-4 py-2 flex items-center gap-3 animate-scale-in">
-          <span className="text-lg">✋</span><span className="text-sm text-white/80">{Array.from(raisedHands.values()).join(', ')} mengangkat tangan</span>
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50">
+          <div className="glass-panel rounded-2xl px-4 py-2 flex items-center gap-3 animate-scale-in">
+            <span className="text-lg">✋</span><span className="text-sm text-white/80">{Array.from(raisedHands.values()).join(', ')} mengangkat tangan</span>
+          </div>
         </div>
       )}
 
@@ -593,7 +612,8 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
       <div className="relative flex flex-1 overflow-hidden pb-[80px]">
         <div className="relative flex-1 overflow-hidden">
           <VideoStage viewMode={viewMode} hideSelf={hideSelf} enhanceLight={enhanceLight}
-            focusedIdentity={focusedIdentity} onFocusParticipant={setFocusedIdentity} globalPinnedIdentity={globalPinnedIdentity} />
+            focusedIdentity={focusedIdentity} onFocusParticipant={setFocusedIdentity} globalPinnedIdentity={globalPinnedIdentity}
+            dominantSpeaker={dominantSpeaker} />
           
           {/* Subtitles Overlay */}
           {subtitles.size > 0 && (
@@ -744,17 +764,19 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
        </div>
        
        {showSettings && (
-         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl border border-white/10 p-3 flex flex-col gap-3 min-w-[160px] animate-scale-in z-50">
-            <div className="flex justify-between items-center bg-white/5 rounded-lg p-1 gap-1">
-               <button onClick={() => setPipViewMode('standard')} className={`flex-1 flex justify-center py-1.5 rounded-md transition-all ${pipViewMode === 'standard' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white'}`}><User className="h-4 w-4"/></button>
-               <button onClick={() => setPipViewMode('gallery')} className={`flex-1 flex justify-center py-1.5 rounded-md transition-all ${pipViewMode === 'gallery' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white'}`}><LayoutGrid className="h-4 w-4"/></button>
-            </div>
-            <button onClick={() => setPipHideSelf(!pipHideSelf)} className="flex items-center gap-2 text-[11px] font-medium text-white/80 hover:text-white transition-all">
-               <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideSelf ? 'bg-[#8ab4f8] border-[#8ab4f8] text-black' : 'border-white/30'}`}>
-                 {pipHideSelf && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>}
-               </div>
-               Sembunyikan untuk saya
-            </button>
+         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50">
+           <div className="bg-black/80 backdrop-blur-sm rounded-xl border border-white/10 p-3 flex flex-col gap-3 min-w-[160px] animate-scale-in">
+              <div className="flex justify-between items-center bg-white/5 rounded-lg p-1 gap-1">
+                 <button onClick={() => setPipViewMode('standard')} className={`flex-1 flex justify-center py-1.5 rounded-md transition-all ${pipViewMode === 'standard' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white'}`}><User className="h-4 w-4"/></button>
+                 <button onClick={() => setPipViewMode('gallery')} className={`flex-1 flex justify-center py-1.5 rounded-md transition-all ${pipViewMode === 'gallery' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white'}`}><LayoutGrid className="h-4 w-4"/></button>
+              </div>
+              <button onClick={() => setPipHideSelf(!pipHideSelf)} className="flex items-center gap-2 text-[11px] font-medium text-white/80 hover:text-white transition-all">
+                 <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideSelf ? 'bg-[#8ab4f8] border-[#8ab4f8] text-black' : 'border-white/30'}`}>
+                   {pipHideSelf && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>}
+                 </div>
+                 Sembunyikan untuk saya
+              </button>
+           </div>
          </div>
        )}
 
