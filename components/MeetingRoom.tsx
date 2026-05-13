@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants, useTracks, GridLayout, ParticipantTile } from '@livekit/components-react';
+import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants, useTracks, GridLayout, ParticipantTile, useSpeakingParticipants } from '@livekit/components-react';
 import { useKrispNoiseFilter } from '@livekit/components-react/krisp';
 import { BackgroundBlur } from '@livekit/track-processors';
 import { VideoPresets, DisconnectReason, RoomOptions, Track, RoomEvent, LocalVideoTrack } from 'livekit-client';
