@@ -154,7 +154,6 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const superAdminRef = useRef(superAdmin);
   const handRaisedRef = useRef(handRaised);
   const subtitlesRef = useRef(subtitles);
-  const subtitlesRef = useRef(subtitles);
   const raisedHandsRef = useRef(raisedHands);
   const captionsOnRef = useRef(captionsOn);
   const globalPinnedIdentityRef = useRef(globalPinnedIdentity);
