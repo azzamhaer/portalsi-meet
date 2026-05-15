@@ -149,10 +149,9 @@
   border-radius: inherit !important;
 }
 .theme-meet .lk-participant-tile:hover { border-color: rgba(138,180,248,0.12) !important; }
-/* hide default border completely when speaking */
 .theme-meet .lk-participant-tile[data-lk-speaking='true'] {
-  border-color: rgba(255,255,255,0.04) !important;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.4) !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 0 0 3px rgba(138,180,248,0.8), 0 0 12px rgba(138,180,248,0.1), 0 4px 24px rgba(0,0,0,0.4) !important;
 }
 .theme-meet .lk-participant-metadata {
   background: linear-gradient(to top, rgba(0,0,0,0.7), transparent) !important;
@@ -160,10 +159,6 @@
   padding: 8px 14px !important; font-weight: 500 !important; font-size: 13px !important;
   bottom: 0 !important; left: 0 !important; right: 0 !important; border: none !important;
   font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif !important;
-}
-.lk-participant-metadata .lk-mic-indicator,
-.lk-participant-metadata [data-lk-source="microphone"] {
-  display: none !important;
 }
 .theme-meet .lk-grid-layout { gap: 8px !important; padding: 8px !important; }
 
@@ -239,11 +234,6 @@
 .reaction-float { animation: reactionFloat 3s ease-out forwards; pointer-events: none; }
 @keyframes reactionFloat { 0%{opacity:1;transform:translateY(0) scale(1)} 70%{opacity:1} 100%{opacity:0;transform:translateY(-120px) scale(1.3)} }
 @keyframes speakingPulse { 0%,100%{box-shadow:0 0 0 3px rgba(138,180,248,0.12)} 50%{box-shadow:0 0 0 5px rgba(138,180,248,0.2)} }
-
-@keyframes audioBarWave {
-  0%, 100% { transform: scaleY(0.4); }
-  50% { transform: scaleY(1); }
-}
 
 /* === GLOBAL === */
 * { -webkit-tap-highlight-color: transparent; }

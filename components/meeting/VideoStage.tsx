@@ -1,40 +1,11 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { useTracks, useLocalParticipant, GridLayout, ParticipantTile as LKParticipantTile, useSpeakingParticipants, useParticipantContext, useIsSpeaking, useIsMuted } from '@livekit/components-react';
+import { useTracks, useLocalParticipant, GridLayout, ParticipantTile, useSpeakingParticipants } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import Draggable from 'react-draggable';
-import { Maximize2, MicOff } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
 import type { ViewMode } from './BottomBar';
-
-export function CustomAudioIndicator({ participant }: { participant?: any }) {
-  const p = participant || useParticipantContext();
-  const isSpeaking = useIsSpeaking(p);
-  const isMuted = useIsMuted({ participant: p, source: Track.Source.Microphone });
-
-  return (
-    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1.5 flex items-center justify-center gap-1 min-w-[28px] h-7 z-10 shadow-lg pointer-events-none">
-      {isMuted ? (
-        <MicOff className="h-3.5 w-3.5 text-red-400" />
-      ) : (
-        <>
-          <div className={`w-[3px] rounded-full bg-green-400 transition-all ${isSpeaking ? 'animate-[audioBarWave_0.6s_ease-in-out_infinite]' : 'h-[4px]'}`} style={{ height: isSpeaking ? '8px' : '4px', animationDelay: '0s' }} />
-          <div className={`w-[3px] rounded-full bg-green-400 transition-all ${isSpeaking ? 'animate-[audioBarWave_0.6s_ease-in-out_infinite]' : 'h-[4px]'}`} style={{ height: isSpeaking ? '12px' : '4px', animationDelay: '0.15s' }} />
-          <div className={`w-[3px] rounded-full bg-green-400 transition-all ${isSpeaking ? 'animate-[audioBarWave_0.6s_ease-in-out_infinite]' : 'h-[4px]'}`} style={{ height: isSpeaking ? '10px' : '4px', animationDelay: '0.3s' }} />
-        </>
-      )}
-    </div>
-  );
-}
-
-export function ParticipantTile(props: any) {
-  return (
-    <LKParticipantTile {...props}>
-      <CustomAudioIndicator participant={props.trackRef?.participant} />
-      {props.children}
-    </LKParticipantTile>
-  );
-}
 
 export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, onFocusParticipant, globalPinnedIdentity, dominantSpeaker }: {
   viewMode: ViewMode; hideSelf: boolean; enhanceLight: boolean;
