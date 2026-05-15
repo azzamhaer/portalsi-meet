@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants, useTracks, GridLayout, ParticipantTile, useSpeakingParticipants } from '@livekit/components-react';
+import { LiveKitRoom, RoomAudioRenderer, ConnectionStateToast, useLocalParticipant, useRoomContext, useParticipants, useTracks, GridLayout, useSpeakingParticipants } from '@livekit/components-react';
 import { useKrispNoiseFilter } from '@livekit/components-react/krisp';
 import { BackgroundBlur } from '@livekit/track-processors';
 import { VideoPresets, DisconnectReason, RoomOptions, Track, RoomEvent, LocalVideoTrack } from 'livekit-client';
 import type { MeetingProps, PanelType } from './meeting/types';
 import type { ViewMode } from './meeting/BottomBar';
-import { VideoStage } from './meeting/VideoStage';
+import { VideoStage, ParticipantTile } from './meeting/VideoStage';
 import { BottomBar } from './meeting/BottomBar';
 import { ChatPanel } from './meeting/ChatPanel';
 import { ParticipantsPanel } from './meeting/ParticipantsPanel';

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
-import '@livekit/components-styles';
 import './globals.css';
+import '@livekit/components-styles';
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
