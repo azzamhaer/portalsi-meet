@@ -230,7 +230,7 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
 export function CustomVideoOverlay() {
   const p = useParticipantContext();
   const pub = p.getTrackPublication(Track.Source.Microphone);
-  const volume = useTrackVolume(pub?.track);
+  const volume = useTrackVolume(pub?.track as any);
   const isMuted = !p.isMicrophoneEnabled;
   
   if (isMuted) {
