@@ -487,7 +487,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
     let to: any;
     const handle = () => {
       clearTimeout(to);
-      if (document.hidden) {
+      if (document.hidden || !document.hasFocus()) {
         to = setTimeout(async () => {
           if (pipWindow) return;
           try {
