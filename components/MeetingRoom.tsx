@@ -37,7 +37,6 @@ const baseRoomOptions: RoomOptions = {
   adaptiveStream: true, dynacast: true,
   publishDefaults: { videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720], videoCodec: 'vp8', simulcast: true, screenShareEncoding: { maxBitrate: 3000000, maxFramerate: 30 } },
   videoCaptureDefaults: { resolution: VideoPresets.h360.resolution, facingMode: 'user' }, // default to balanced
-  screenShareCaptureDefaults: { resolution: { width: 1920, height: 1080, frameRate: 30 } },
   audioCaptureDefaults: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
   stopLocalTrackOnUnpublish: true,
   reconnectPolicy: { nextRetryDelayInMs: (ctx) => Math.min(1000 * Math.pow(2, ctx.retryCount), 10000) },
