@@ -35,8 +35,9 @@ export interface Subtitle { id: string; identity: string; name: string; text: st
 
 const baseRoomOptions: RoomOptions = {
   adaptiveStream: true, dynacast: true,
-  publishDefaults: { videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720], videoCodec: 'vp8', simulcast: true },
+  publishDefaults: { videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720], videoCodec: 'vp8', simulcast: true, screenShareEncoding: { maxBitrate: 3000000, maxFramerate: 30 } },
   videoCaptureDefaults: { resolution: VideoPresets.h360.resolution, facingMode: 'user' }, // default to balanced
+  screenShareCaptureDefaults: { resolution: { width: 1920, height: 1080, frameRate: 30 } },
   audioCaptureDefaults: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
   stopLocalTrackOnUnpublish: true,
   reconnectPolicy: { nextRetryDelayInMs: (ctx) => Math.min(1000 * Math.pow(2, ctx.retryCount), 10000) },
@@ -724,6 +725,7 @@ import { Mic, MicOff, Video, VideoOff, MessageSquare, PhoneOff, Settings, User, 
 function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, hasMicError, hasCamError }: any) {
   const [pipViewMode, setPipViewMode] = useState<'standard'|'gallery'>('standard');
   const [pipHideSelf, setPipHideSelf] = useState(false);
+  const [pipHideAllVideo, setPipHideAllVideo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   const { localParticipant } = useLocalParticipant();
@@ -731,7 +733,7 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
   
   const tracks = pipHideSelf ? allTracks.filter(t => t.participant.identity !== localParticipant.identity) : allTracks;
   const screenShareTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
-  const otherTracks = tracks.filter(t => t.source !== Track.Source.ScreenShare);
+  const otherTracks = (pipHideAllVideo && screenShareTrack) ? [] : tracks.filter(t => t.source !== Track.Source.ScreenShare);
 
   return (
     <div className="w-screen h-screen overflow-hidden text-white flex flex-col relative group" style={{ background: '#0a0a0f' }}>
@@ -775,6 +777,14 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
                  </div>
                  Sembunyikan untuk saya
               </button>
+              {screenShareTrack && (
+                <button onClick={() => setPipHideAllVideo(!pipHideAllVideo)} className="flex items-center gap-2 text-[11px] font-medium text-white/80 hover:text-white transition-all">
+                   <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideAllVideo ? 'bg-[#8ab4f8] border-[#8ab4f8] text-black' : 'border-white/30'}`}>
+                     {pipHideAllVideo && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>}
+                   </div>
+                   Sembunyikan semua video kamera
+                </button>
+              )}
            </div>
          </div>
        )}

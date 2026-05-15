@@ -183,7 +183,7 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
   return (
     <>
       <div className="hidden md:block fixed inset-0 z-40 pointer-events-none pb-[80px]">
-        <Draggable bounds="parent" defaultPosition={{x: winW - 250, y: winH - 260}} nodeRef={nodeRefDesktop}>
+        <Draggable bounds="parent" defaultPosition={{x: winW - 250, y: 24}} nodeRef={nodeRefDesktop}>
           <div ref={nodeRefDesktop} className="absolute top-0 left-0 pip-container group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10 hover:shadow-2xl transition-shadow" onClick={onClick} style={{ touchAction: 'none', width: '224px', height: '144px', minWidth: '150px', minHeight: '100px', maxWidth: '400px', maxHeight: '300px', resize: 'both', aspectRatio: '16/9' }}>
             <div style={{ width: '100%', height: '100%' }}>
               <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none" />
@@ -195,7 +195,7 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
         </Draggable>
       </div>
       <div className="md:hidden fixed inset-0 z-40 pointer-events-none pb-[80px]">
-        <Draggable bounds="parent" defaultPosition={{x: winW - 130, y: winH - 250}} nodeRef={nodeRefMobile}>
+        <Draggable bounds="parent" defaultPosition={{x: winW - 130, y: 24}} nodeRef={nodeRefMobile}>
           <div ref={nodeRefMobile} className="absolute top-0 left-0 pip-container cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none', width: '112px', height: '160px', minWidth: '80px', minHeight: '120px', maxWidth: '200px', maxHeight: '280px', resize: 'both', aspectRatio: '7/10' }}>
             <div style={{ width: '100%', height: '100%' }}>
               <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none [&>video]:object-cover" />
