@@ -246,21 +246,18 @@ function CustomMicIndicator({ trackRef }: { trackRef: any }) {
   }
 
   // 3 bars logic
+  const isSpeaking = volume > 0.01;
   const v1 = Math.max(25, volume * 100);
   const v2 = Math.max(30, volume * 150);
   const v3 = Math.max(25, volume * 100);
 
   return (
     <div className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-[rgba(20,20,24,0.8)] flex items-center justify-center backdrop-blur-md border border-[#8ab4f8]/30 shadow-[0_0_8px_rgba(138,180,248,0.2)]">
-      {volume > 0.01 ? (
-        <div className="flex items-end justify-center gap-[2.5px] h-3.5">
-          <div className="w-[2px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: `${v1}%` }} />
-          <div className="w-[2px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: `${v2}%` }} />
-          <div className="w-[2px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: `${v3}%` }} />
-        </div>
-      ) : (
-        <Mic className="w-3.5 h-3.5 text-[#8ab4f8]" />
-      )}
+      <div className="flex items-center justify-center gap-[2.5px] h-3.5">
+        <div className="w-[3px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: isSpeaking ? `${v1}%` : '3px' }} />
+        <div className="w-[3px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: isSpeaking ? `${v2}%` : '3px' }} />
+        <div className="w-[3px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: isSpeaking ? `${v3}%` : '3px' }} />
+      </div>
     </div>
   );
 }
