@@ -237,9 +237,12 @@ function CustomMicIndicator({ trackRef }: { trackRef: any }) {
   // useTrackVolume accepts TrackReference | undefined
   const volume = useTrackVolume(micTrackRef);
 
-  if (isMuted || !micTrackRef) {
+  // Check the participant object directly as a fallback
+  const isMicOffFallback = !trackRef.participant.isMicrophoneEnabled;
+
+  if (isMuted || !micTrackRef || isMicOffFallback) {
     return (
-      <div className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-[rgba(20,20,24,0.8)] flex items-center justify-center backdrop-blur-md border border-white/10 shadow-lg">
+      <div className="absolute top-3 right-3 z-[100] w-7 h-7 rounded-full bg-[rgba(20,20,24,0.8)] flex items-center justify-center backdrop-blur-md border border-white/10 shadow-lg pointer-events-none">
         <MicOff className="w-3.5 h-3.5 text-gray-400" />
       </div>
     );
@@ -252,7 +255,7 @@ function CustomMicIndicator({ trackRef }: { trackRef: any }) {
   const v3 = Math.max(25, volume * 100);
 
   return (
-    <div className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-[rgba(20,20,24,0.8)] flex items-center justify-center backdrop-blur-md border border-[#8ab4f8]/30 shadow-[0_0_8px_rgba(138,180,248,0.2)]">
+    <div className="absolute top-3 right-3 z-[100] w-7 h-7 rounded-full bg-[rgba(20,20,24,0.8)] flex items-center justify-center backdrop-blur-md border border-[#8ab4f8]/30 shadow-[0_0_8px_rgba(138,180,248,0.2)] pointer-events-none">
       <div className="flex items-center justify-center gap-[2.5px] h-3.5">
         <div className="w-[3px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: isSpeaking ? `${v1}%` : '3px' }} />
         <div className="w-[3px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: isSpeaking ? `${v2}%` : '3px' }} />
