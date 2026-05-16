@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { useTracks, useLocalParticipant, GridLayout, ParticipantTile, useSpeakingParticipants, useParticipant, useTrackVolume } from '@livekit/components-react';
+import { useTracks, useLocalParticipant, GridLayout, ParticipantTile, useSpeakingParticipants, useIsMuted, useTrackVolume, useParticipantTracks } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import Draggable from 'react-draggable';
 import { Maximize2, Mic, MicOff } from 'lucide-react';
@@ -225,13 +225,19 @@ function TileWrapper(props: any) {
 }
 
 function CustomMicIndicator({ trackRef }: { trackRef: any }) {
-  const { isMicrophoneEnabled } = useParticipant(trackRef.participant);
-  const micTrackRef = useMemo(() => {
+  const tracks = useParticipantTracks([Track.Source.Microphone], trackRef.participant.identity);
+  const micTrackRef = tracks[0];
+
+  const micPlaceholder = useMemo(() => {
     return { participant: trackRef.participant, source: Track.Source.Microphone };
   }, [trackRef.participant]);
+
+  // useIsMuted accepts TrackReferenceOrPlaceholder
+  const isMuted = useIsMuted((micTrackRef || micPlaceholder) as any);
+  // useTrackVolume accepts TrackReference | undefined
   const volume = useTrackVolume(micTrackRef);
 
-  if (!isMicrophoneEnabled) {
+  if (isMuted || !micTrackRef) {
     return (
       <div className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-[rgba(20,20,24,0.8)] flex items-center justify-center backdrop-blur-md border border-white/10 shadow-lg">
         <MicOff className="w-3.5 h-3.5 text-gray-400" />
