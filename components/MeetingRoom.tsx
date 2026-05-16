@@ -44,8 +44,8 @@ const baseRoomOptions: RoomOptions = {
 
 export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLeave, initialMic, initialCam, hasMicError, hasCamError }: MeetingProps) {
   const [fatalError, setFatalError] = useState<string | null>(null);
-  const [videoQuality, setVideoQuality] = useState<'highest' | 'balanced' | 'lowest'>(
-    typeof window !== 'undefined' && window.innerWidth < 768 ? 'lowest' : 'balanced'
+  const [videoQuality, setVideoQuality] = useState<'highest' | 'balanced' | 'lowest' | 'auto'>(
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'auto' : 'auto'
   );
   const manualDisconnectRef = useRef(false);
 
@@ -55,6 +55,7 @@ export function MeetingRoom({ roomId, token, wsUrl, name, isHost, password, onLe
     let res = VideoPresets.h360.resolution;
     if (initialQuality === 'highest') res = VideoPresets.h720.resolution;
     if (initialQuality === 'lowest') res = VideoPresets.h180.resolution;
+    if (initialQuality === 'auto') res = VideoPresets.h360.resolution;
     return {
       ...baseRoomOptions,
       videoCaptureDefaults: { ...baseRoomOptions.videoCaptureDefaults, resolution: res }
@@ -84,7 +85,7 @@ function ErrScr({ title, msg, onLeave }: { title: string; msg: string; onLeave: 
   return <main className="theme-comic min-h-dvh flex items-center justify-center p-4"><div className="card max-w-md text-center"><h2 className="text-xl font-bold text-red-500">{title}</h2><p className="mt-2 text-ink-300">{msg}</p><button className="btn-primary mt-6 w-full" onClick={onLeave}>Kembali</button></div></main>;
 }
 
-function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQuality, onManualDisconnect, hasMicError, hasCamError }: { roomId: string; isHost: boolean; password?: string; onLeave: () => void; videoQuality: 'highest'|'balanced'|'lowest'; setVideoQuality: (q: 'highest'|'balanced'|'lowest')=>void; onManualDisconnect: () => void; hasMicError?: boolean; hasCamError?: boolean; }) {
+function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQuality, onManualDisconnect, hasMicError, hasCamError }: { roomId: string; isHost: boolean; password?: string; onLeave: () => void; videoQuality: 'highest'|'balanced'|'lowest'|'auto'; setVideoQuality: (q: 'highest'|'balanced'|'lowest'|'auto')=>void; onManualDisconnect: () => void; hasMicError?: boolean; hasCamError?: boolean; }) {
   const [activePanel, setActivePanel] = useState<PanelType>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('standard');
   const [hideSelf, setHideSelf] = useState(false);
@@ -198,12 +199,15 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         let res = VideoPresets.h360.resolution;
         if (videoQuality === 'highest') res = VideoPresets.h720.resolution;
         if (videoQuality === 'lowest') res = VideoPresets.h180.resolution;
+        if (videoQuality === 'auto') res = VideoPresets.h360.resolution;
         
         try {
           if (trackPub.track instanceof LocalVideoTrack) {
-            await trackPub.track.restartTrack({ resolution: res });
+            const currentSettings = trackPub.track.mediaStreamTrack.getSettings();
+            await trackPub.track.restartTrack({ resolution: res, facingMode: currentSettings.facingMode });
           } else {
-            await (trackPub.track as any).restartTrack?.({ resolution: res });
+            const currentSettings = (trackPub.track as any).mediaStreamTrack?.getSettings?.();
+            await (trackPub.track as any).restartTrack?.({ resolution: res, facingMode: currentSettings?.facingMode });
           }
         } catch (e) {
           console.error("Failed to restart track with new quality", e);

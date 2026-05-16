@@ -10,7 +10,7 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
   onMuteAll?: () => void; onMuteVideoAll?: () => void;
   noiseSuppression?: boolean; onToggleNoiseSuppression?: () => void;
   captionsOn?: boolean; onToggleCaptions?: () => void;
-  videoQuality?: 'highest' | 'balanced' | 'lowest'; onVideoQualityChange?: (q: 'highest' | 'balanced' | 'lowest') => void;
+  videoQuality?: 'highest' | 'balanced' | 'lowest' | 'auto'; onVideoQualityChange?: (q: 'highest' | 'balanced' | 'lowest' | 'auto') => void;
 }) {
   const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({ audio: [], video: [] });
 
@@ -69,14 +69,20 @@ export function SettingsPanel({ onClose, enhanceLight, onToggleEnhanceLight, isH
         <DeviceSelect icon={<Volume2 className="h-3.5 w-3.5" />} label="Speaker" devices={[]} fallback="Default Speaker" />
         
         {onVideoQualityChange && (
-          <div className="space-y-2 mt-4">
-            <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-1.5"><Camera className="h-3.5 w-3.5"/> Kualitas Video / Performa</label>
-            <select value={videoQuality || 'balanced'} onChange={e => onVideoQualityChange(e.target.value as 'highest' | 'balanced' | 'lowest')} className="w-full bg-[#121218] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 outline-none focus:border-[#8ab4f8]/40 appearance-none cursor-pointer">
-              <option value="highest">Highest (HD, Lebih panas & boros baterai)</option>
-              <option value="balanced">Balanced (Optimal)</option>
-              <option value="lowest">Lowest (Hemat baterai & internet, tidak panas)</option>
-            </select>
-            <p className="text-[10px] text-white/30 leading-relaxed px-1">Sesuaikan jika HP terasa panas atau koneksi lambat.</p>
+          <div className="space-y-4 mt-4">
+            <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider">Kualitas Video / Performa</h3>
+            <Toggle icon={<Camera className="h-4 w-4 text-[#8ab4f8]" />} title="Kualitas Otomatis" desc="Sesuaikan kualitas dengan performa & jaringan" active={videoQuality === 'auto'} onToggle={() => onVideoQualityChange(videoQuality === 'auto' ? 'balanced' : 'auto')} />
+            {videoQuality !== 'auto' && (
+              <div className="space-y-2 pl-2 border-l-2 border-[#8ab4f8]/30 ml-2 animate-fade-in">
+                <label className="text-[11px] font-medium text-white/40 uppercase tracking-wider">Pilih Kualitas Manual</label>
+                <select value={videoQuality || 'balanced'} onChange={e => onVideoQualityChange(e.target.value as 'highest' | 'balanced' | 'lowest')} className="w-full bg-[#121218] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/80 outline-none focus:border-[#8ab4f8]/40 appearance-none cursor-pointer">
+                  <option value="highest">Highest (HD, Lebih panas & boros baterai)</option>
+                  <option value="balanced">Balanced (Optimal)</option>
+                  <option value="lowest">Lowest (Hemat baterai & internet, tidak panas)</option>
+                </select>
+                <p className="text-[10px] text-white/30 leading-relaxed px-1">Sesuaikan jika HP terasa panas atau koneksi lambat.</p>
+              </div>
+            )}
           </div>
         )}
         <hr className="border-white/[0.06]" />

@@ -6,7 +6,7 @@ import { Track } from 'livekit-client';
 import {
   PhoneOff, Info, Users, MessageSquare, Settings, Hand, Smile,
   Copy, MoreVertical, LayoutGrid, ScreenShare, ScreenShareOff,
-  Mic, MicOff, Video, VideoOff, RefreshCcw, ZoomIn, Disc, PenTool, Timer, TriangleAlert
+  Mic, MicOff, Video, VideoOff, RefreshCcw, ZoomIn, ZoomOut, Disc, PenTool, Timer, TriangleAlert
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 import type { PanelType } from './types';
@@ -42,6 +42,8 @@ export function BottomBar({
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [sharing, setSharing] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   useState(() => { setInterval(() => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), 1000); });
 
@@ -97,6 +99,7 @@ export function BottomBar({
         const currentZoom = settings.zoom || 1;
         const newZoom = currentZoom > 1.5 ? 1 : 2;
         await track.mediaStreamTrack.applyConstraints({ advanced: [{ zoom: newZoom }] } as any);
+        setIsZoomed(newZoom > 1.5);
       } else {
         alert("Zoom tidak didukung oleh perangkat ini.");
       }
@@ -144,7 +147,7 @@ export function BottomBar({
             onClick={() => { toggle('whiteboard'); setShowMobileMore(false); }} />}
           <hr className="border-white/[0.06] my-1 mx-3" />
           <MItem icon={<RefreshCcw className="h-4 w-4" />} label="Putar Kamera" onClick={() => { flipCamera(); setShowMobileMore(false); }} />
-          <MItem icon={<ZoomIn className="h-4 w-4" />} label="Zoom Kamera" onClick={() => { zoomCamera(); setShowMobileMore(false); }} />
+          <MItem icon={isZoomed ? <ZoomOut className="h-4 w-4" /> : <ZoomIn className="h-4 w-4" />} label={isZoomed ? "Zoom Out" : "Zoom In"} onClick={() => { zoomCamera(); setShowMobileMore(false); }} />
           {onRecordToggle && (
              <MItem icon={<Disc className={`h-4 w-4 ${isRecording ? 'text-red-500 animate-pulse' : ''}`} />} 
                label={isRecording ? "Hentikan Rekaman" : "Mulai Rekaman"} 
@@ -178,7 +181,7 @@ export function BottomBar({
         {/* CENTER — custom mic/cam/share buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2" onClick={e => e.stopPropagation()}>
           {/* Mic */}
-          <Tooltip text={hasMicError ? 'Mic tidak terdeteksi' : isMicOn ? 'Matikan Mic (Ctrl+D)' : 'Nyalakan Mic (Ctrl+D)'}>
+          <Tooltip text={hasMicError ? 'Mic tidak terdeteksi' : isMicOn ? `Matikan Mic${isMobile ? '' : ' (Ctrl+D)'}` : `Nyalakan Mic${isMobile ? '' : ' (Ctrl+D)'}`}>
             <button onClick={toggleMic} disabled={hasMicError}
               className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${hasMicError ? '!bg-yellow-500/20 !border-yellow-500/30 !text-yellow-400 opacity-80 cursor-not-allowed' : !isMicOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
               {hasMicError ? <TriangleAlert className="h-5 w-5" /> : isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
@@ -186,7 +189,7 @@ export function BottomBar({
           </Tooltip>
 
           {/* Cam */}
-          <Tooltip text={hasCamError ? 'Kamera tidak terdeteksi' : isCamOn ? 'Matikan Kamera (Ctrl+E)' : 'Nyalakan Kamera (Ctrl+E)'}>
+          <Tooltip text={hasCamError ? 'Kamera tidak terdeteksi' : isCamOn ? `Matikan Kamera${isMobile ? '' : ' (Ctrl+E)'}` : `Nyalakan Kamera${isMobile ? '' : ' (Ctrl+E)'}`}>
             <button onClick={toggleCam} disabled={hasCamError}
               className={`glass-button rounded-full h-12 w-12 flex items-center justify-center ${hasCamError ? '!bg-yellow-500/20 !border-yellow-500/30 !text-yellow-400 opacity-80 cursor-not-allowed' : !isCamOn ? '!bg-red-500/20 !border-red-500/30 !text-red-400' : ''}`}>
               {hasCamError ? <TriangleAlert className="h-5 w-5" /> : isCamOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
