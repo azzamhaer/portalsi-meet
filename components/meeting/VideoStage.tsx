@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { useTracks, useLocalParticipant, GridLayout, ParticipantTile, useSpeakingParticipants } from '@livekit/components-react';
+import { useTracks, useLocalParticipant, GridLayout, ParticipantTile, useSpeakingParticipants, useParticipant, useTrackVolume } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import Draggable from 'react-draggable';
-import { Maximize2 } from 'lucide-react';
+import { Maximize2, Mic, MicOff } from 'lucide-react';
 import type { ViewMode } from './BottomBar';
 
 export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, onFocusParticipant, globalPinnedIdentity, dominantSpeaker }: {
@@ -32,7 +32,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
       <div className={`relative h-full w-full flex items-center justify-center p-2 ${fc}`}>
         <div className="relative w-full h-full max-w-5xl rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           <GridLayout tracks={[localCam]} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-            <ParticipantTile />
+            <TileWrapper />
           </GridLayout>
         </div>
       </div>
@@ -44,7 +44,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
     return (
       <div className={`h-full w-full p-2 ${fc}`}>
         <GridLayout tracks={allTracks.slice(0, 16)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-          <ParticipantTile />
+          <TileWrapper />
         </GridLayout>
       </div>
     );
@@ -67,6 +67,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
       <div className={`relative h-full w-full p-2 ${fc}`}>
         <div className="h-full w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
+          <CustomMicIndicator trackRef={mainTrack} />
         </div>
         {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} />}
       </div>
@@ -79,7 +80,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
     return (
       <div className={`h-full w-full p-2 ${fc}`}>
         <GridLayout tracks={allTracks.slice(0, 9)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-          <ParticipantTile />
+          <TileWrapper />
         </GridLayout>
       </div>
     );
@@ -93,6 +94,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
       {mainTrack && (
         <div className="flex-1 min-h-0 rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative">
           <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
+          <CustomMicIndicator trackRef={mainTrack} />
           {screenShareTrack && (
             <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs text-white/80 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
@@ -112,6 +114,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
               return (
                 <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.4)] bg-black shrink-0 relative cursor-pointer hover:ring-2 hover:ring-[#8ab4f8]/40 transition-all" onClick={() => onFocusParticipant(sharerIdentity === focusedIdentity ? null : sharerIdentity)}>
                   <ParticipantTile trackRef={sharerCam} className="h-full w-full" />
+                  <CustomMicIndicator trackRef={sharerCam} />
                 </div>
               );
             }
@@ -137,6 +140,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
                       className={`w-full ${displayTracks.length === 1 ? 'aspect-video' : 'aspect-[4/3]'} rounded-2xl overflow-hidden bg-black relative cursor-pointer shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:ring-2 hover:ring-[#8ab4f8]/40 transition-all`}
                       onClick={() => onFocusParticipant(tr.participant.identity === focusedIdentity ? null : tr.participant.identity)}>
                       <ParticipantTile trackRef={tr} className="h-full w-full" />
+                      <CustomMicIndicator trackRef={tr} />
                       {isLast && remainingCount > 0 && (
                         <div className="absolute inset-0 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center text-white z-10 hover:bg-black/80 transition-all">
                           <span className="text-xl lg:text-2xl font-bold">+{remainingCount}</span>
@@ -160,6 +164,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
               className="pip-container shrink-0 w-36 h-24 md:w-full md:h-32 cursor-pointer hover:ring-2 hover:ring-[#8ab4f8]/40 rounded-2xl transition-all overflow-hidden relative"
               onClick={() => onFocusParticipant(tr.participant.identity === focusedIdentity ? null : tr.participant.identity)}>
               <ParticipantTile trackRef={tr} className="h-full w-full" />
+              <CustomMicIndicator trackRef={tr} />
             </div>
           ))}
         </div>
@@ -187,6 +192,7 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
           <div ref={nodeRefDesktop} className="absolute top-0 left-0 pip-container group cursor-move pointer-events-auto rounded-2xl overflow-hidden shadow-xl ring-2 ring-white/10 hover:shadow-2xl transition-shadow" onClick={onClick} style={{ touchAction: 'none', width: '224px', height: '144px', minWidth: '150px', minHeight: '100px', maxWidth: '400px', maxHeight: '300px', resize: 'both', aspectRatio: '16/9' }}>
             <div style={{ width: '100%', height: '100%' }}>
               <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none" />
+              <CustomMicIndicator trackRef={trackRef} />
             </div>
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
               <Maximize2 className="h-6 w-6 text-white drop-shadow" />
@@ -199,10 +205,56 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
           <div ref={nodeRefMobile} className="absolute top-0 left-0 pip-container cursor-move pointer-events-auto overflow-hidden rounded-xl shadow-lg ring-2 ring-white/10" onClick={onClick} style={{ touchAction: 'none', width: '112px', height: '160px', minWidth: '80px', minHeight: '120px', maxWidth: '200px', maxHeight: '280px', resize: 'both', aspectRatio: '7/10' }}>
             <div style={{ width: '100%', height: '100%' }}>
               <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full pointer-events-none [&>video]:object-cover" />
+              <CustomMicIndicator trackRef={trackRef} />
             </div>
           </div>
         </Draggable>
       </div>
     </>
+  );
+}
+
+function TileWrapper(props: any) {
+  const { trackRef, className, style, ...rest } = props;
+  return (
+    <div className={`relative ${className || ''}`} style={style}>
+      <ParticipantTile trackRef={trackRef} className="h-full w-full" {...rest} />
+      {trackRef && <CustomMicIndicator trackRef={trackRef} />}
+    </div>
+  );
+}
+
+function CustomMicIndicator({ trackRef }: { trackRef: any }) {
+  const { isMicrophoneEnabled } = useParticipant(trackRef.participant);
+  const micTrackRef = useMemo(() => {
+    return { participant: trackRef.participant, source: Track.Source.Microphone };
+  }, [trackRef.participant]);
+  const volume = useTrackVolume(micTrackRef);
+
+  if (!isMicrophoneEnabled) {
+    return (
+      <div className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-[rgba(20,20,24,0.8)] flex items-center justify-center backdrop-blur-md border border-white/10 shadow-lg">
+        <MicOff className="w-3.5 h-3.5 text-gray-400" />
+      </div>
+    );
+  }
+
+  // 3 bars logic
+  const v1 = Math.max(25, volume * 100);
+  const v2 = Math.max(30, volume * 150);
+  const v3 = Math.max(25, volume * 100);
+
+  return (
+    <div className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-[rgba(20,20,24,0.8)] flex items-center justify-center backdrop-blur-md border border-[#8ab4f8]/30 shadow-[0_0_8px_rgba(138,180,248,0.2)]">
+      {volume > 0.01 ? (
+        <div className="flex items-end justify-center gap-[2.5px] h-3.5">
+          <div className="w-[2px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: `${v1}%` }} />
+          <div className="w-[2px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: `${v2}%` }} />
+          <div className="w-[2px] bg-[#8ab4f8] rounded-full transition-all duration-75" style={{ height: `${v3}%` }} />
+        </div>
+      ) : (
+        <Mic className="w-3.5 h-3.5 text-[#8ab4f8]" />
+      )}
+    </div>
   );
 }
