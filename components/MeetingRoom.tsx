@@ -204,10 +204,10 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
         try {
           if (trackPub.track instanceof LocalVideoTrack) {
             const currentSettings = trackPub.track.mediaStreamTrack.getSettings();
-            await trackPub.track.restartTrack({ resolution: res, facingMode: currentSettings.facingMode });
+            await trackPub.track.restartTrack({ resolution: res, facingMode: currentSettings.facingMode as any });
           } else {
             const currentSettings = (trackPub.track as any).mediaStreamTrack?.getSettings?.();
-            await (trackPub.track as any).restartTrack?.({ resolution: res, facingMode: currentSettings?.facingMode });
+            await (trackPub.track as any).restartTrack?.({ resolution: res, facingMode: currentSettings?.facingMode as any });
           }
         } catch (e) {
           console.error("Failed to restart track with new quality", e);
