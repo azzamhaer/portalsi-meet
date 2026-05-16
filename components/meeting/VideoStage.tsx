@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { useTracks, useLocalParticipant, GridLayout, ParticipantTile, useSpeakingParticipants, useIsMuted, useTrackVolume, useParticipantTracks } from '@livekit/components-react';
+import { useTracks, useLocalParticipant, GridLayout, ParticipantTile, useSpeakingParticipants, useIsMuted, useTrackVolume, useParticipantTracks, useMaybeTrackRefContext } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import Draggable from 'react-draggable';
 import { Maximize2, Mic, MicOff } from 'lucide-react';
@@ -65,8 +65,8 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
   if (remoteTracks.length === 1 && mainTrack) {
     return (
       <div className={`relative h-full w-full p-2 ${fc}`}>
-        <div className="h-full w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-          <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
+        <div className="h-full w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative">
+          <ParticipantTile trackRef={mainTrack} disableSpeakingIndicator className="h-full w-full" />
           <CustomMicIndicator trackRef={mainTrack} />
         </div>
         {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} />}
@@ -93,7 +93,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
     <div className={`relative h-full w-full flex flex-col md:flex-row gap-2 p-2 ${fc}`}>
       {mainTrack && (
         <div className="flex-1 min-h-0 rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative">
-          <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
+          <ParticipantTile trackRef={mainTrack} disableSpeakingIndicator className="h-full w-full" />
           <CustomMicIndicator trackRef={mainTrack} />
           {screenShareTrack && (
             <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs text-white/80 flex items-center gap-1.5">
@@ -113,7 +113,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
             if (sharerCam) {
               return (
                 <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.4)] bg-black shrink-0 relative cursor-pointer hover:ring-2 hover:ring-[#8ab4f8]/40 transition-all" onClick={() => onFocusParticipant(sharerIdentity === focusedIdentity ? null : sharerIdentity)}>
-                  <ParticipantTile trackRef={sharerCam} className="h-full w-full" />
+                  <ParticipantTile trackRef={sharerCam} disableSpeakingIndicator className="h-full w-full" />
                   <CustomMicIndicator trackRef={sharerCam} />
                 </div>
               );
@@ -139,7 +139,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
                     <div key={`${tr.participant.identity}-${tr.source}`} 
                       className={`w-full ${displayTracks.length === 1 ? 'aspect-video' : 'aspect-[4/3]'} rounded-2xl overflow-hidden bg-black relative cursor-pointer shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:ring-2 hover:ring-[#8ab4f8]/40 transition-all`}
                       onClick={() => onFocusParticipant(tr.participant.identity === focusedIdentity ? null : tr.participant.identity)}>
-                      <ParticipantTile trackRef={tr} className="h-full w-full" />
+                      <ParticipantTile trackRef={tr} disableSpeakingIndicator className="h-full w-full" />
                       <CustomMicIndicator trackRef={tr} />
                       {isLast && remainingCount > 0 && (
                         <div className="absolute inset-0 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center text-white z-10 hover:bg-black/80 transition-all">
@@ -163,7 +163,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
             <div key={`${tr.participant.identity}-${tr.source}`}
               className="pip-container shrink-0 w-36 h-24 md:w-full md:h-32 cursor-pointer hover:ring-2 hover:ring-[#8ab4f8]/40 rounded-2xl transition-all overflow-hidden relative"
               onClick={() => onFocusParticipant(tr.participant.identity === focusedIdentity ? null : tr.participant.identity)}>
-              <ParticipantTile trackRef={tr} className="h-full w-full" />
+              <ParticipantTile trackRef={tr} disableSpeakingIndicator className="h-full w-full" />
               <CustomMicIndicator trackRef={tr} />
             </div>
           ))}
@@ -215,10 +215,13 @@ function Pip({ trackRef, onClick }: { trackRef: any; onClick: () => void }) {
 }
 
 function TileWrapper(props: any) {
-  const { trackRef, className, style, ...rest } = props;
+  const { trackRef: propTrackRef, className, style, ...rest } = props;
+  const contextTrackRef = useMaybeTrackRefContext();
+  const trackRef = propTrackRef || contextTrackRef;
+
   return (
     <div className={`relative ${className || ''}`} style={style}>
-      <ParticipantTile trackRef={trackRef} className="h-full w-full" {...rest} />
+      <ParticipantTile trackRef={trackRef} disableSpeakingIndicator className="h-full w-full" {...rest} />
       {trackRef && <CustomMicIndicator trackRef={trackRef} />}
     </div>
   );
