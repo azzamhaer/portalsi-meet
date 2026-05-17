@@ -741,32 +741,32 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
 
   return (
     <div className="fixed inset-0 overflow-hidden text-white flex flex-col bg-[#0a0a0f] group" data-lk-theme="default">
-       <div className="flex-1 min-h-0 relative p-2" onClick={() => setShowSettings(false)}>
+       <div className="flex-1 min-h-0 relative" onClick={() => setShowSettings(false)}>
           {screenShareTrack ? (
-             <div className="flex flex-col h-full w-full gap-2">
-                <div className="flex-1 bg-black/50 rounded-2xl overflow-hidden relative shadow-lg ring-1 ring-white/5">
-                   <ParticipantTile trackRef={screenShareTrack} className="h-full w-full [&>video]:object-contain [&_.lk-participant-metadata]:hidden" />
+             <div className="flex flex-col h-full w-full bg-[#0a0a0f]">
+                <div className="flex-1 overflow-hidden relative">
+                   <ParticipantTile trackRef={screenShareTrack} disableSpeakingIndicator className="h-full w-full [&>video]:object-contain [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
                 </div>
                 {otherTracks.length > 0 && (
-                   <div className="flex gap-2 overflow-x-auto meet-scrollbar h-20 shrink-0 px-0.5 pb-0.5">
+                   <div className="flex gap-1 overflow-x-auto meet-scrollbar h-20 shrink-0 p-1">
                       {otherTracks.map(t => (
-                         <div key={`${t.participant.identity}-${t.source}`} className="aspect-video bg-black/50 rounded-xl overflow-hidden shrink-0 shadow-md ring-1 ring-white/5">
-                            <ParticipantTile trackRef={t} className="h-full w-full [&_.lk-participant-metadata]:hidden" />
+                         <div key={`${t.participant.identity}-${t.source}`} className="aspect-video bg-[#121218] rounded-lg overflow-hidden shrink-0">
+                            <ParticipantTile trackRef={t} disableSpeakingIndicator className="h-full w-full [&_.lk-participant-metadata]:hidden !border-none !shadow-none" />
                          </div>
                       ))}
                    </div>
                 )}
              </div>
           ) : pipViewMode === 'gallery' ? (
-             <div className="w-full h-full bg-black/50 rounded-2xl overflow-hidden shadow-lg ring-1 ring-white/5">
-                <GridLayout tracks={tracks.slice(0, 16)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-                  <ParticipantTile className="h-full w-full [&_.lk-participant-metadata]:hidden" />
+             <div className="w-full h-full bg-[#0a0a0f]">
+                <GridLayout tracks={tracks.slice(0, 16)} className="h-full w-full outline-none !p-0 !gap-0.5" style={{ height: '100%', width: '100%' }}>
+                  <ParticipantTile disableSpeakingIndicator className="h-full w-full [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
                 </GridLayout>
              </div>
           ) : (
-             <div className="w-full h-full bg-black/50 rounded-2xl overflow-hidden shadow-lg ring-1 ring-white/5">
-                <GridLayout tracks={tracks.slice(0, 9)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-                 <ParticipantTile className="h-full w-full [&_.lk-participant-metadata]:hidden" />
+             <div className="w-full h-full bg-[#0a0a0f]">
+                <GridLayout tracks={tracks.slice(0, 9)} className="h-full w-full outline-none !p-0 !gap-0.5" style={{ height: '100%', width: '100%' }}>
+                 <ParticipantTile disableSpeakingIndicator className="h-full w-full [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
                 </GridLayout>
              </div>
           )}
