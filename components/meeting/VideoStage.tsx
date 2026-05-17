@@ -12,7 +12,7 @@ import React from 'react';
 const AspectRatioWrapper = ({ children }: { children: React.ReactNode }) => (
   <div className="relative flex justify-center items-center w-full h-full">
     <div className="relative max-w-full max-h-full flex-shrink-0 flex items-center justify-center">
-      <svg viewBox="0 0 16 9" className="max-w-full max-h-full h-auto w-auto opacity-0 pointer-events-none" />
+      <svg viewBox="0 0 16 9" className="max-w-full max-h-full opacity-0 pointer-events-none" style={{ width: '10000px', height: 'auto' }} />
       <div className="absolute inset-0">
         {children}
       </div>
@@ -20,12 +20,14 @@ const AspectRatioWrapper = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const AspectRatioTile = React.forwardRef<HTMLDivElement, any>((props, ref) => (
-  <AspectRatioWrapper>
-    <div ref={ref} className="w-full h-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] bg-black">
-      <ParticipantTile {...props} className="h-full w-full" />
-    </div>
-  </AspectRatioWrapper>
+const AspectRatioTile = React.forwardRef<HTMLDivElement, any>(({ style, className, ...props }, ref) => (
+  <div style={style} className={className}>
+    <AspectRatioWrapper>
+      <div ref={ref} className="w-full h-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] bg-black">
+        <ParticipantTile {...props} className="h-full w-full" />
+      </div>
+    </AspectRatioWrapper>
+  </div>
 ));
 AspectRatioTile.displayName = 'AspectRatioTile';
 
