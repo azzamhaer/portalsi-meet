@@ -740,17 +740,17 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
   const otherTracks = (pipHideAllVideo && screenShareTrack) ? [] : tracks.filter(t => t.source !== Track.Source.ScreenShare);
 
   return (
-    <div className="w-screen h-screen overflow-hidden text-white flex flex-col relative group" style={{ background: '#0a0a0f' }}>
-       <div className="flex-1 min-h-0 relative p-1" onClick={() => setShowSettings(false)}>
+    <div className="fixed inset-0 overflow-hidden text-white flex flex-col bg-[#0a0a0f] group">
+       <div className="flex-1 min-h-0 relative p-2" onClick={() => setShowSettings(false)}>
           {screenShareTrack ? (
-             <div className="flex flex-col md:flex-row h-full w-full gap-1">
-                <div className="flex-1 bg-black rounded-lg overflow-hidden relative">
+             <div className="flex flex-col h-full w-full gap-2">
+                <div className="flex-1 bg-black/50 rounded-2xl overflow-hidden relative shadow-lg ring-1 ring-white/5">
                    <ParticipantTile trackRef={screenShareTrack} className="h-full w-full [&>video]:object-contain" />
                 </div>
                 {otherTracks.length > 0 && (
-                   <div className="w-full md:w-1/3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-y-auto min-h-[80px] md:min-h-0 shrink-0">
+                   <div className="flex gap-2 overflow-x-auto meet-scrollbar h-20 shrink-0 px-0.5 pb-0.5">
                       {otherTracks.map(t => (
-                         <div key={`${t.participant.identity}-${t.source}`} className="aspect-video bg-black rounded-lg overflow-hidden shrink-0 w-24 md:w-full">
+                         <div key={`${t.participant.identity}-${t.source}`} className="aspect-video bg-black/50 rounded-xl overflow-hidden shrink-0 shadow-md ring-1 ring-white/5">
                             <ParticipantTile trackRef={t} className="h-full w-full" />
                          </div>
                       ))}
@@ -758,47 +758,55 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
                 )}
              </div>
           ) : pipViewMode === 'gallery' ? (
-            <GridLayout tracks={tracks.slice(0, 16)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-              <ParticipantTile />
-            </GridLayout>
+             <div className="w-full h-full bg-black/50 rounded-2xl overflow-hidden shadow-lg ring-1 ring-white/5">
+                <GridLayout tracks={tracks.slice(0, 16)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
+                  <ParticipantTile />
+                </GridLayout>
+             </div>
           ) : (
-             <GridLayout tracks={tracks.slice(0, 9)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-              <ParticipantTile />
-             </GridLayout>
+             <div className="w-full h-full bg-black/50 rounded-2xl overflow-hidden shadow-lg ring-1 ring-white/5">
+                <GridLayout tracks={tracks.slice(0, 9)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
+                 <ParticipantTile />
+                </GridLayout>
+             </div>
           )}
        </div>
        
        {showSettings && (
-         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50">
-           <div className="bg-black/80 backdrop-blur-sm rounded-xl border border-white/10 p-3 flex flex-col gap-3 min-w-[160px] animate-scale-in">
-              <div className="flex justify-between items-center bg-white/5 rounded-lg p-1 gap-1">
-                 <button onClick={() => setPipViewMode('standard')} className={`flex-1 flex justify-center py-1.5 rounded-md transition-all ${pipViewMode === 'standard' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white'}`}><User className="h-4 w-4"/></button>
-                 <button onClick={() => setPipViewMode('gallery')} className={`flex-1 flex justify-center py-1.5 rounded-md transition-all ${pipViewMode === 'gallery' ? 'bg-[#8ab4f8] text-black' : 'text-white/60 hover:text-white'}`}><LayoutGrid className="h-4 w-4"/></button>
+         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50">
+           <div className="bg-black/70 backdrop-blur-xl rounded-2xl border border-white/10 p-3 flex flex-col gap-3 min-w-[200px] shadow-2xl animate-scale-in">
+              <div className="flex justify-between items-center bg-white/5 rounded-xl p-1 gap-1">
+                 <button onClick={() => setPipViewMode('standard')} className={`flex-1 flex justify-center py-1.5 rounded-lg transition-all text-xs font-medium ${pipViewMode === 'standard' ? 'bg-white text-black shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/10'}`}>Fokus</button>
+                 <button onClick={() => setPipViewMode('gallery')} className={`flex-1 flex justify-center py-1.5 rounded-lg transition-all text-xs font-medium ${pipViewMode === 'gallery' ? 'bg-white text-black shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/10'}`}>Galeri</button>
               </div>
-              <button onClick={() => setPipHideSelf(!pipHideSelf)} className="flex items-center gap-2 text-[11px] font-medium text-white/80 hover:text-white transition-all">
-                 <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideSelf ? 'bg-[#8ab4f8] border-[#8ab4f8] text-black' : 'border-white/30'}`}>
+              <button onClick={() => setPipHideSelf(!pipHideSelf)} className="flex items-center gap-3 text-xs font-medium text-white/80 hover:text-white transition-all px-1">
+                 <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideSelf ? 'bg-white border-white text-black' : 'border-white/30'}`}>
                    {pipHideSelf && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>}
                  </div>
-                 Sembunyikan untuk saya
+                 Sembunyikan saya
               </button>
               {screenShareTrack && (
-                <button onClick={() => setPipHideAllVideo(!pipHideAllVideo)} className="flex items-center gap-2 text-[11px] font-medium text-white/80 hover:text-white transition-all">
-                   <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideAllVideo ? 'bg-[#8ab4f8] border-[#8ab4f8] text-black' : 'border-white/30'}`}>
+                <button onClick={() => setPipHideAllVideo(!pipHideAllVideo)} className="flex items-center gap-3 text-xs font-medium text-white/80 hover:text-white transition-all px-1">
+                   <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideAllVideo ? 'bg-white border-white text-black' : 'border-white/30'}`}>
                      {pipHideAllVideo && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>}
                    </div>
-                   Sembunyikan semua video kamera
+                   Sembunyikan kamera
                 </button>
               )}
            </div>
          </div>
        )}
 
-       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={onToggleMic} disabled={hasMicError} className={`h-10 w-10 flex items-center justify-center rounded-full ${hasMicError ? 'bg-yellow-500/20 text-yellow-500 opacity-80 cursor-not-allowed' : isMicOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400'} transition-all`}>{hasMicError ? <TriangleAlert className="h-4 w-4" /> : isMicOn ? <Mic className="h-4 w-4"/> : <MicOff className="h-4 w-4"/>}</button>
-          <button onClick={onToggleCam} disabled={hasCamError} className={`h-10 w-10 flex items-center justify-center rounded-full ${hasCamError ? 'bg-yellow-500/20 text-yellow-500 opacity-80 cursor-not-allowed' : isCamOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400'} transition-all`}>{hasCamError ? <TriangleAlert className="h-4 w-4" /> : isCamOn ? <Video className="h-4 w-4"/> : <VideoOff className="h-4 w-4"/>}</button>
-          <button onClick={onChat} className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all"><MessageSquare className="h-4 w-4"/></button>
-          <button onClick={() => setShowSettings(!showSettings)} className={`h-10 w-10 flex items-center justify-center rounded-full transition-all ${showSettings ? 'bg-[#8ab4f8] text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}><Settings className="h-4 w-4"/></button>
-          <button onClick={onLeave} className="h-10 w-10 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-400 transition-all"><PhoneOff className="h-4 w-4"/></button>
+       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-y-0 translate-y-4">
+          <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-1.5 rounded-full flex items-center justify-center gap-1.5 shadow-2xl">
+             <button onClick={onToggleMic} disabled={hasMicError} className={`h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full ${hasMicError ? 'bg-yellow-500/20 text-yellow-500 opacity-80 cursor-not-allowed' : isMicOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400 shadow-[0_0_15px_rgba(239,68,68,0.4)]'} transition-all`}>{hasMicError ? <TriangleAlert className="h-4 w-4" /> : isMicOn ? <Mic className="h-4 w-4"/> : <MicOff className="h-4 w-4"/>}</button>
+             <button onClick={onToggleCam} disabled={hasCamError} className={`h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full ${hasCamError ? 'bg-yellow-500/20 text-yellow-500 opacity-80 cursor-not-allowed' : isCamOn ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white hover:bg-red-400 shadow-[0_0_15px_rgba(239,68,68,0.4)]'} transition-all`}>{hasCamError ? <TriangleAlert className="h-4 w-4" /> : isCamOn ? <Video className="h-4 w-4"/> : <VideoOff className="h-4 w-4"/>}</button>
+             <div className="w-px h-5 sm:h-6 bg-white/10 mx-0.5 sm:mx-1" />
+             <button onClick={onChat} className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all"><MessageSquare className="h-4 w-4"/></button>
+             <button onClick={() => setShowSettings(!showSettings)} className={`h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full transition-all ${showSettings ? 'bg-white text-black shadow-md' : 'bg-white/10 text-white hover:bg-white/20'}`}><Settings className="h-4 w-4"/></button>
+             <div className="w-px h-5 sm:h-6 bg-white/10 mx-0.5 sm:mx-1" />
+             <button onClick={onLeave} className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-400 transition-all shadow-[0_0_15px_rgba(239,68,68,0.4)]"><PhoneOff className="h-4 w-4"/></button>
+          </div>
        </div>
     </div>
   )
