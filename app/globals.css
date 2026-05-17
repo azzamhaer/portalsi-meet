@@ -144,13 +144,8 @@
   transition: border-color 0.12s ease-out, box-shadow 0.12s ease-out !important;
   font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif !important;
   transform: translateZ(0); /* force GPU boundary for smooth overflow */
-  width: 100% !important;
-  height: 100% !important;
 }
 .theme-meet .lk-participant-tile > video {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
   border-radius: inherit !important;
 }
 .theme-meet .lk-participant-tile:hover { border-color: rgba(138,180,248,0.12) !important; }
@@ -167,7 +162,13 @@
 }
 .theme-meet .lk-grid-layout { gap: 8px !important; padding: 8px !important; }
 
-/* Removed object-fit: contain since the tile itself is now exactly 16:9 */
+/* Portrait video support on mobile */
+@media (max-width: 768px) {
+  .theme-meet .lk-participant-tile video {
+    object-fit: contain !important;
+    background: #0a0a0f;
+  }
+}
 
 /* === VIDEO FILTERS === */
 .video-enhance-light .lk-participant-tile video { filter: brightness(1.2) contrast(1.08) saturate(1.1); }

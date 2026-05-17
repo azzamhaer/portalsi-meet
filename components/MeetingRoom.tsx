@@ -159,37 +159,20 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const captionsOnRef = useRef(captionsOn);
   const globalPinnedIdentityRef = useRef(globalPinnedIdentity);
 
-  // Debounced dominant speaker with sticky hold
+  // Debounced dominant speaker (Zoom/Meet style)
   const activeSpeakers = useSpeakingParticipants();
   const [dominantSpeaker, setDominantSpeaker] = useState<string | null>(null);
-  const lastSwitchTime = useRef<number>(0);
-  const switchTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (activeSpeakers.length > 0) {
       const topSpeaker = activeSpeakers[0].identity;
-      
       if (topSpeaker !== dominantSpeaker) {
-        if (switchTimer.current) clearTimeout(switchTimer.current);
-
-        const timeSinceLastSwitch = Date.now() - lastSwitchTime.current;
-        const holdTimeRemaining = Math.max(0, 3000 - timeSinceLastSwitch); // 3 detik minimum hold
-        const delay = Math.max(1500, holdTimeRemaining); // 1.5 detik debounce tunda
-
-        switchTimer.current = setTimeout(() => {
+        const timer = setTimeout(() => {
           setDominantSpeaker(topSpeaker);
-          lastSwitchTime.current = Date.now();
-        }, delay);
-      } else {
-        if (switchTimer.current) clearTimeout(switchTimer.current);
+        }, 1500); // Hold for 1.5 seconds to prevent rapid flickering
+        return () => clearTimeout(timer);
       }
-    } else {
-      if (switchTimer.current) clearTimeout(switchTimer.current);
     }
-    
-    return () => {
-      if (switchTimer.current) clearTimeout(switchTimer.current);
-    };
   }, [activeSpeakers, dominantSpeaker]);
 
   useEffect(() => { timerRef.current = timer; adminsRef.current = admins; superAdminRef.current = superAdmin; }, [timer, admins, superAdmin]);
@@ -759,7 +742,7 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
 
   return (
     <div className="fixed inset-0 overflow-hidden text-white flex flex-col bg-[#0a0a0f] group" data-lk-theme="default">
-       <div className="flex-1 min-h-0 relative pb-[70px]" onClick={() => setShowSettings(false)}>
+       <div className="flex-1 min-h-0 relative" onClick={() => setShowSettings(false)}>
           {screenShareTrack ? (
              <div className="flex flex-col h-full w-full bg-[#0a0a0f]">
                 <div className="flex-1 overflow-hidden relative">
@@ -778,17 +761,14 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
           ) : pipViewMode === 'gallery' ? (
              <div className="w-full h-full bg-[#0a0a0f]">
                 <GridLayout tracks={tracks.slice(0, 16)} className="h-full w-full outline-none !p-0 !gap-0.5" style={{ height: '100%', width: '100%' }}>
-                  <ParticipantTile disableSpeakingIndicator className="h-full w-full [&>video]:object-cover [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
+                  <ParticipantTile disableSpeakingIndicator className="h-full w-full [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
                 </GridLayout>
              </div>
           ) : (
-             <div className="w-full h-full bg-[#0a0a0f] flex overflow-x-auto snap-x snap-mandatory overflow-y-hidden meet-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <style>{`.meet-scrollbar::-webkit-scrollbar { display: none; }`}</style>
-                {tracks.slice(0, 9).map(t => (
-                   <div key={`${t.participant.identity}-${t.source}`} className="w-full h-full shrink-0 snap-center relative">
-                      <ParticipantTile trackRef={t} disableSpeakingIndicator className="h-full w-full [&>video]:object-cover [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
-                   </div>
-                ))}
+             <div className="w-full h-full bg-[#0a0a0f]">
+                <GridLayout tracks={tracks.slice(0, 9)} className="h-full w-full outline-none !p-0 !gap-0.5" style={{ height: '100%', width: '100%' }}>
+                 <ParticipantTile disableSpeakingIndicator className="h-full w-full [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
+                </GridLayout>
              </div>
           )}
        </div>

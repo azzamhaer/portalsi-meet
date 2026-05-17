@@ -22,7 +22,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
   const [targetIdentity, setTargetIdentity] = useState<string>('all');
   const [menuId, setMenuId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const participants = useParticipants();
@@ -52,7 +52,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
     setInput(''); setReplyTo(null);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 20 * 1024 * 1024) return alert("Ukuran file maksimal 20MB.");
@@ -60,35 +60,39 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
     setIsUploading(true);
     setUploadProgress(0);
     const formData = new FormData(); formData.append('file', file);
-    try {
-      const data = await new Promise<any>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener('progress', (ev) => {
-          if (ev.lengthComputable) {
-            setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
-          }
-        });
-        xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try { resolve(JSON.parse(xhr.responseText)); } catch(err) { reject(new Error('Invalid response')); }
-          } else {
-            reject(new Error('Upload failed'));
-          }
-        });
-        xhr.addEventListener('error', () => reject(new Error('Network error')));
-        xhr.open('POST', '/api/upload');
-        xhr.send(formData);
-      });
-      if (data.success) {
-        onSend(input.trim() || 'Mengirim berkas', {
-          fileUrl: data.url, fileName: data.name,
-          replyToId: replyTo?.id, replyToText: replyTo?.text, replyToSender: replyTo?.sender,
-          isPrivate: targetIdentity !== 'all', targetIdentity: targetIdentity !== 'all' ? targetIdentity : undefined
-        });
-        setInput(''); setReplyTo(null);
-      } else alert("Gagal: " + data.error);
-    } catch { alert("Error mengunggah."); } 
-    finally { setIsUploading(false); setUploadProgress(0); if (fileInputRef.current) fileInputRef.current.value = ''; }
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload');
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        setUploadProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      setIsUploading(false);
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (xhr.status === 200) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data.success) {
+            onSend(input.trim() || 'Mengirim berkas', {
+              fileUrl: data.url, fileName: data.name,
+              replyToId: replyTo?.id, replyToText: replyTo?.text, replyToSender: replyTo?.sender,
+              isPrivate: targetIdentity !== 'all', targetIdentity: targetIdentity !== 'all' ? targetIdentity : undefined
+            });
+            setInput(''); setReplyTo(null);
+          } else { alert("Gagal: " + data.error); }
+        } catch { alert("Error memproses respons."); }
+      } else { alert("Error mengunggah."); }
+    };
+    xhr.onerror = () => {
+      setIsUploading(false);
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      alert("Error mengunggah.");
+    };
+    xhr.send(formData);
   };
 
   const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -190,15 +194,16 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
                 </select>
                 <div className="flex items-center gap-2">
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all shrink-0">
+                  <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="relative p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all shrink-0" title={isUploading ? `Mengunggah ${uploadProgress}%` : 'Kirim Berkas'}>
                     {isUploading ? (
-                      <div className="relative w-4 h-4 flex items-center justify-center" title={`${uploadProgress}%`}>
-                        <svg className="w-4 h-4 transform -rotate-90" viewBox="0 0 24 24">
-                          <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.1)" strokeWidth="3" fill="none" />
-                          <circle cx="12" cy="12" r="10" stroke="#8ab4f8" strokeWidth="3" fill="none" strokeDasharray="62.8" strokeDashoffset={62.8 - (62.8 * uploadProgress) / 100} className="transition-all duration-300 ease-out" />
+                      <div className="relative flex items-center justify-center w-5 h-5">
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 24 24">
+                          <circle className="text-white/20" strokeWidth="2.5" stroke="currentColor" fill="transparent" r="10" cx="12" cy="12" />
+                          <circle className="text-[#8ab4f8] transition-all duration-300 ease-out" strokeWidth="2.5" strokeDasharray="62.8" strokeDashoffset={62.8 - (62.8 * (uploadProgress || 0)) / 100} strokeLinecap="round" stroke="currentColor" fill="transparent" r="10" cx="12" cy="12" />
                         </svg>
+                        <span className="absolute text-[8px] font-bold text-white" style={{ transform: 'scale(0.85)' }}>{uploadProgress}</span>
                       </div>
-                    ) : <Paperclip className="w-4 h-4" />}
+                    ) : <Paperclip className="w-5 h-5" />}
                   </button>
                   <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder="Ketik pesan..." className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-[#8ab4f8]/30 transition-all" />
                   <button onClick={handleSend} disabled={!input.trim() && !isUploading} className={`p-2.5 rounded-full transition-all ${input.trim() ? 'bg-[#8ab4f8] text-black' : 'bg-white/[0.05] text-white/20'}`}><Send className="h-4 w-4" /></button>
