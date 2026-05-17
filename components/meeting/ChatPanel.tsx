@@ -22,6 +22,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
   const [targetIdentity, setTargetIdentity] = useState<string>('all');
   const [menuId, setMenuId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const participants = useParticipants();
@@ -57,10 +58,27 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
     if (file.size > 20 * 1024 * 1024) return alert("Ukuran file maksimal 20MB.");
     
     setIsUploading(true);
+    setUploadProgress(0);
     const formData = new FormData(); formData.append('file', file);
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      const data = await res.json();
+      const data = await new Promise<any>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener('progress', (ev) => {
+          if (ev.lengthComputable) {
+            setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+          }
+        });
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try { resolve(JSON.parse(xhr.responseText)); } catch(err) { reject(new Error('Invalid response')); }
+          } else {
+            reject(new Error('Upload failed'));
+          }
+        });
+        xhr.addEventListener('error', () => reject(new Error('Network error')));
+        xhr.open('POST', '/api/upload');
+        xhr.send(formData);
+      });
       if (data.success) {
         onSend(input.trim() || 'Mengirim berkas', {
           fileUrl: data.url, fileName: data.name,
@@ -70,7 +88,7 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
         setInput(''); setReplyTo(null);
       } else alert("Gagal: " + data.error);
     } catch { alert("Error mengunggah."); } 
-    finally { setIsUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+    finally { setIsUploading(false); setUploadProgress(0); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
 
   const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -172,7 +190,16 @@ export function ChatPanel({ messages, localIdentity, localName, onSend, onEdit, 
                 </select>
                 <div className="flex items-center gap-2">
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all shrink-0">{isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}</button>
+                  <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all shrink-0">
+                    {isUploading ? (
+                      <div className="relative w-4 h-4 flex items-center justify-center" title={`${uploadProgress}%`}>
+                        <svg className="w-4 h-4 transform -rotate-90" viewBox="0 0 24 24">
+                          <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.1)" strokeWidth="3" fill="none" />
+                          <circle cx="12" cy="12" r="10" stroke="#8ab4f8" strokeWidth="3" fill="none" strokeDasharray="62.8" strokeDashoffset={62.8 - (62.8 * uploadProgress) / 100} className="transition-all duration-300 ease-out" />
+                        </svg>
+                      </div>
+                    ) : <Paperclip className="w-4 h-4" />}
+                  </button>
                   <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder="Ketik pesan..." className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-[#8ab4f8]/30 transition-all" />
                   <button onClick={handleSend} disabled={!input.trim() && !isUploading} className={`p-2.5 rounded-full transition-all ${input.trim() ? 'bg-[#8ab4f8] text-black' : 'bg-white/[0.05] text-white/20'}`}><Send className="h-4 w-4" /></button>
                 </div>

@@ -709,7 +709,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
 
       {pipWindow && createPortal(
         <PipGrid 
-          onLeave={() => { pipWindow.close(); setPipWindow(null); setShowLeaveConfirm(true); }}
+          onLeave={() => { window.focus(); pipWindow.close(); setPipWindow(null); setShowLeaveConfirm(true); }}
           onChat={() => { window.focus(); setActivePanel('chat'); pipWindow.close(); setPipWindow(null); }}
           onToggleMic={() => { if (!hasMicError) localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled) }}
           onToggleCam={() => { if (!hasCamError) localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled) }}
@@ -738,6 +738,7 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
   const tracks = pipHideSelf ? allTracks.filter(t => t.participant.identity !== localParticipant.identity) : allTracks;
   const screenShareTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
   const otherTracks = (pipHideAllVideo && screenShareTrack) ? [] : tracks.filter(t => t.source !== Track.Source.ScreenShare);
+  const hasOtherParticipants = allTracks.some(t => t.participant.identity !== localParticipant.identity);
 
   return (
     <div className="fixed inset-0 overflow-hidden text-white flex flex-col bg-[#0a0a0f] group" data-lk-theme="default">
@@ -779,12 +780,14 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
                  <button onClick={() => setPipViewMode('standard')} className={`flex-1 flex justify-center py-1.5 rounded-lg transition-all text-xs font-medium ${pipViewMode === 'standard' ? 'bg-white text-black shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/10'}`}>Fokus</button>
                  <button onClick={() => setPipViewMode('gallery')} className={`flex-1 flex justify-center py-1.5 rounded-lg transition-all text-xs font-medium ${pipViewMode === 'gallery' ? 'bg-white text-black shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/10'}`}>Galeri</button>
               </div>
-              <button onClick={() => setPipHideSelf(!pipHideSelf)} className="flex items-center gap-3 text-xs font-medium text-white/80 hover:text-white transition-all px-1">
-                 <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideSelf ? 'bg-white border-white text-black' : 'border-white/30'}`}>
-                   {pipHideSelf && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>}
-                 </div>
-                 Sembunyikan saya
-              </button>
+              {hasOtherParticipants && (
+                <button onClick={() => setPipHideSelf(!pipHideSelf)} className="flex items-center gap-3 text-xs font-medium text-white/80 hover:text-white transition-all px-1">
+                   <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideSelf ? 'bg-white border-white text-black' : 'border-white/30'}`}>
+                     {pipHideSelf && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>}
+                   </div>
+                   Sembunyikan saya
+                </button>
+              )}
               {screenShareTrack && (
                 <button onClick={() => setPipHideAllVideo(!pipHideAllVideo)} className="flex items-center gap-3 text-xs font-medium text-white/80 hover:text-white transition-all px-1">
                    <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${pipHideAllVideo ? 'bg-white border-white text-black' : 'border-white/30'}`}>
