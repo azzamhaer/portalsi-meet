@@ -7,20 +7,27 @@ import Draggable from 'react-draggable';
 import { Maximize2 } from 'lucide-react';
 import type { ViewMode } from './BottomBar';
 
+import React from 'react';
+
 const AspectRatioWrapper = ({ children }: { children: React.ReactNode }) => (
   <div className="relative flex justify-center items-center w-full h-full">
-    <div 
-      className="relative flex-shrink-0 w-full h-full"
-      style={{
-        aspectRatio: '16/9',
-        maxWidth: 'calc((100vh - 120px) * 16 / 9)',
-        maxHeight: '100%'
-      }}
-    >
-      {children}
+    <div className="relative max-w-full max-h-full flex-shrink-0 flex items-center justify-center">
+      <svg viewBox="0 0 16 9" className="max-w-full max-h-full h-auto w-auto opacity-0 pointer-events-none" />
+      <div className="absolute inset-0">
+        {children}
+      </div>
     </div>
   </div>
 );
+
+const AspectRatioTile = React.forwardRef<HTMLDivElement, any>((props, ref) => (
+  <AspectRatioWrapper>
+    <div ref={ref} className="w-full h-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] bg-black">
+      <ParticipantTile {...props} className="h-full w-full" />
+    </div>
+  </AspectRatioWrapper>
+));
+AspectRatioTile.displayName = 'AspectRatioTile';
 
 export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, onFocusParticipant, globalPinnedIdentity, dominantSpeaker }: {
   viewMode: ViewMode; hideSelf: boolean; enhanceLight: boolean;
@@ -46,7 +53,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
     return (
       <div className={`relative h-full w-full flex items-center justify-center p-2 lg:p-4 ${fc}`}>
         <AspectRatioWrapper>
-          <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+          <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] bg-black">
             <GridLayout tracks={[localCam]} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
               <ParticipantTile />
             </GridLayout>
@@ -61,7 +68,7 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
     return (
       <div className={`h-full w-full p-2 ${fc}`}>
         <GridLayout tracks={allTracks.slice(0, 16)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-          <ParticipantTile />
+          <AspectRatioTile />
         </GridLayout>
       </div>
     );
@@ -70,36 +77,38 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
   // === SPEAKER / STANDARD — determine main track ===
   // Pinned track logic
   // We'll prioritize: focusedIdentity > globalPinnedIdentity > screenShareTrack > dominantSpeaker > first remote
-  const mainTrack = (focusedIdentity ? remoteTracks.find(t => t.participant.identity === focusedIdentity && t.source !== Track.Source.ScreenShare) : null)
-    || (globalPinnedIdentity ? remoteTracks.find(t => t.participant.identity === globalPinnedIdentity && t.source !== Track.Source.ScreenShare) : null)
+  const mainTrack = (focusedIdentity ? tracks.find(t => t.participant.identity === focusedIdentity && t.source !== Track.Source.ScreenShare) : null)
+    || (globalPinnedIdentity ? tracks.find(t => t.participant.identity === globalPinnedIdentity && t.source !== Track.Source.ScreenShare) : null)
     || screenShareTrack
-    || (dominantSpeaker ? remoteTracks.find(t => t.participant.identity === dominantSpeaker && t.source !== Track.Source.ScreenShare) : null)
+    || (dominantSpeaker ? tracks.find(t => t.participant.identity === dominantSpeaker && t.source !== Track.Source.ScreenShare) : null)
     || (remoteTracks.length > 0 ? remoteTracks[0] : null);
 
   const stripTracks = remoteTracks.filter(t => t !== mainTrack && (mainTrack?.source === Track.Source.ScreenShare ? true : t.source !== Track.Source.ScreenShare)).slice(0, 11);
 
   // 1-on-1
   if (remoteTracks.length === 1 && mainTrack) {
+    const isLocalMain = mainTrack.participant.identity === localParticipant.identity;
+    const pipTrack = isLocalMain ? remoteTracks[0] : localCam;
     return (
       <div className={`relative h-full w-full flex items-center justify-center p-2 lg:p-4 ${fc}`}>
         <AspectRatioWrapper>
-          <div className="h-full w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+          <div className="h-full w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] bg-black">
             <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
           </div>
         </AspectRatioWrapper>
-        {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} />}
+        {!hideSelf && pipTrack && <Pip trackRef={pipTrack} onClick={() => onFocusParticipant(isLocalMain ? remoteTracks[0].participant.identity : localParticipant.identity)} />}
       </div>
     );
   }
 
   // Small group standard
   if (viewMode === 'standard' && remoteTracks.length <= 4 && !screenShareTrack && !focusedIdentity) {
-    const allTracks = hideSelf ? remoteTracks : tracks;
     return (
-      <div className={`h-full w-full p-2 ${fc}`}>
-        <GridLayout tracks={allTracks.slice(0, 9)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-          <ParticipantTile />
+      <div className={`relative h-full w-full p-2 ${fc}`}>
+        <GridLayout tracks={remoteTracks.slice(0, 9)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
+          <AspectRatioTile />
         </GridLayout>
+        {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(localParticipant.identity)} />}
       </div>
     );
   }
@@ -184,9 +193,9 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
         </div>
       )}
       
-      {!hideSelf && localCam && (
+      {!hideSelf && localCam && mainTrack?.participant.identity !== localParticipant.identity && (
         <div className={isScreenShareDesktop ? 'md:hidden' : ''}>
-          <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} />
+          <Pip trackRef={localCam} onClick={() => onFocusParticipant(localParticipant.identity)} />
         </div>
       )}
     </div>

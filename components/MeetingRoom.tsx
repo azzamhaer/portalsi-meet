@@ -759,7 +759,7 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
 
   return (
     <div className="fixed inset-0 overflow-hidden text-white flex flex-col bg-[#0a0a0f] group" data-lk-theme="default">
-       <div className="flex-1 min-h-0 relative" onClick={() => setShowSettings(false)}>
+       <div className="flex-1 min-h-0 relative pb-[70px]" onClick={() => setShowSettings(false)}>
           {screenShareTrack ? (
              <div className="flex flex-col h-full w-full bg-[#0a0a0f]">
                 <div className="flex-1 overflow-hidden relative">
@@ -778,14 +778,17 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
           ) : pipViewMode === 'gallery' ? (
              <div className="w-full h-full bg-[#0a0a0f]">
                 <GridLayout tracks={tracks.slice(0, 16)} className="h-full w-full outline-none !p-0 !gap-0.5" style={{ height: '100%', width: '100%' }}>
-                  <ParticipantTile disableSpeakingIndicator className="h-full w-full [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
+                  <ParticipantTile disableSpeakingIndicator className="h-full w-full [&>video]:object-cover [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
                 </GridLayout>
              </div>
           ) : (
-             <div className="w-full h-full bg-[#0a0a0f]">
-                <GridLayout tracks={tracks.slice(0, 9)} className="h-full w-full outline-none !p-0 !gap-0.5" style={{ height: '100%', width: '100%' }}>
-                 <ParticipantTile disableSpeakingIndicator className="h-full w-full [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
-                </GridLayout>
+             <div className="w-full h-full bg-[#0a0a0f] flex overflow-x-auto snap-x snap-mandatory overflow-y-hidden meet-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <style>{`.meet-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+                {tracks.slice(0, 9).map(t => (
+                   <div key={`${t.participant.identity}-${t.source}`} className="w-full h-full shrink-0 snap-center relative">
+                      <ParticipantTile trackRef={t} disableSpeakingIndicator className="h-full w-full [&>video]:object-cover [&_.lk-participant-metadata]:hidden !rounded-none !border-none !shadow-none" />
+                   </div>
+                ))}
              </div>
           )}
        </div>
