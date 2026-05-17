@@ -137,12 +137,6 @@
 
 /* Participant Tile — smooth speaking border */
 .theme-meet .lk-participant-tile {
-  width: auto !important;
-  height: auto !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-  aspect-ratio: 16 / 9 !important;
-  margin: auto !important;
   border-radius: 16px !important; overflow: hidden;
   background: linear-gradient(145deg, #141418, #0e0e12) !important;
   border: 1px solid rgba(255,255,255,0.04) !important;
@@ -150,6 +144,8 @@
   transition: border-color 0.12s ease-out, box-shadow 0.12s ease-out !important;
   font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif !important;
   transform: translateZ(0); /* force GPU boundary for smooth overflow */
+  width: 100% !important;
+  height: 100% !important;
 }
 .theme-meet .lk-participant-tile > video {
   width: 100% !important;

@@ -7,6 +7,21 @@ import Draggable from 'react-draggable';
 import { Maximize2 } from 'lucide-react';
 import type { ViewMode } from './BottomBar';
 
+const AspectRatioWrapper = ({ children }: { children: React.ReactNode }) => (
+  <div className="relative flex justify-center items-center w-full h-full">
+    <div 
+      className="relative flex-shrink-0 w-full h-full"
+      style={{
+        aspectRatio: '16/9',
+        maxWidth: 'calc((100vh - 120px) * 16 / 9)',
+        maxHeight: '100%'
+      }}
+    >
+      {children}
+    </div>
+  </div>
+);
+
 export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, onFocusParticipant, globalPinnedIdentity, dominantSpeaker }: {
   viewMode: ViewMode; hideSelf: boolean; enhanceLight: boolean;
   focusedIdentity: string | null; onFocusParticipant: (id: string | null) => void;
@@ -29,12 +44,14 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
   // === ALONE: full screen self ===
   if (isAlone && localCam) {
     return (
-      <div className={`relative h-full w-full flex items-center justify-center p-2 ${fc}`}>
-        <div className="relative w-full h-full max-w-5xl rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-          <GridLayout tracks={[localCam]} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-            <ParticipantTile />
-          </GridLayout>
-        </div>
+      <div className={`relative h-full w-full flex items-center justify-center p-2 lg:p-4 ${fc}`}>
+        <AspectRatioWrapper>
+          <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+            <GridLayout tracks={[localCam]} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
+              <ParticipantTile />
+            </GridLayout>
+          </div>
+        </AspectRatioWrapper>
       </div>
     );
   }
@@ -64,10 +81,12 @@ export function VideoStage({ viewMode, hideSelf, enhanceLight, focusedIdentity, 
   // 1-on-1
   if (remoteTracks.length === 1 && mainTrack) {
     return (
-      <div className={`relative h-full w-full p-2 ${fc}`}>
-        <div className="h-full w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-          <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
-        </div>
+      <div className={`relative h-full w-full flex items-center justify-center p-2 lg:p-4 ${fc}`}>
+        <AspectRatioWrapper>
+          <div className="h-full w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+            <ParticipantTile trackRef={mainTrack} className="h-full w-full" />
+          </div>
+        </AspectRatioWrapper>
         {!hideSelf && localCam && <Pip trackRef={localCam} onClick={() => onFocusParticipant(null)} />}
       </div>
     );
