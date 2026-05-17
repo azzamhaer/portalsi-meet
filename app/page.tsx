@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { HomeHero } from '@/components/HomeHero';
+import { FaqButton } from '@/components/FaqButton';
 
 export default function HomePage() {
   return (
@@ -21,9 +22,7 @@ export default function HomePage() {
             </div>
           </Link>
           <div className="flex items-center gap-4">
-            <span className="hidden sm:inline-flex text-xs font-medium text-gray-400">
-              <a href="https://wa.me/6281350880733" target="_blank" className='text-dove-green'>Butuh bantuan?</a>
-            </span>
+            <FaqButton />
           </div>
         </div>
       </header>

@@ -512,6 +512,7 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
                   pw.document.head.appendChild(link);
                 }
               });
+              pw.document.body.className = document.body.className;
               setPipWindow(pw);
             } else {
               const v = document.querySelector('.lk-participant-tile video') as HTMLVideoElement | null;
