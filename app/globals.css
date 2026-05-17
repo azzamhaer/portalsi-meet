@@ -137,6 +137,12 @@
 
 /* Participant Tile — smooth speaking border */
 .theme-meet .lk-participant-tile {
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  aspect-ratio: 16 / 9 !important;
+  margin: auto !important;
   border-radius: 16px !important; overflow: hidden;
   background: linear-gradient(145deg, #141418, #0e0e12) !important;
   border: 1px solid rgba(255,255,255,0.04) !important;
@@ -146,6 +152,9 @@
   transform: translateZ(0); /* force GPU boundary for smooth overflow */
 }
 .theme-meet .lk-participant-tile > video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
   border-radius: inherit !important;
 }
 .theme-meet .lk-participant-tile:hover { border-color: rgba(138,180,248,0.12) !important; }
@@ -162,11 +171,7 @@
 }
 .theme-meet .lk-grid-layout { gap: 8px !important; padding: 8px !important; }
 
-/* Ensure video maintains 16:9 aspect ratio and is never stretched/gepeng */
-.theme-meet .lk-participant-tile video {
-  object-fit: contain !important;
-  background: #0a0a0f;
-}
+/* Removed object-fit: contain since the tile itself is now exactly 16:9 */
 
 /* === VIDEO FILTERS === */
 .video-enhance-light .lk-participant-tile video { filter: brightness(1.2) contrast(1.08) saturate(1.1); }
