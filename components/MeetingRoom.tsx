@@ -740,18 +740,18 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
   const otherTracks = (pipHideAllVideo && screenShareTrack) ? [] : tracks.filter(t => t.source !== Track.Source.ScreenShare);
 
   return (
-    <div className="fixed inset-0 overflow-hidden text-white flex flex-col bg-[#0a0a0f] group">
+    <div className="fixed inset-0 overflow-hidden text-white flex flex-col bg-[#0a0a0f] group" data-lk-theme="default">
        <div className="flex-1 min-h-0 relative p-2" onClick={() => setShowSettings(false)}>
           {screenShareTrack ? (
              <div className="flex flex-col h-full w-full gap-2">
                 <div className="flex-1 bg-black/50 rounded-2xl overflow-hidden relative shadow-lg ring-1 ring-white/5">
-                   <ParticipantTile trackRef={screenShareTrack} className="h-full w-full [&>video]:object-contain" />
+                   <ParticipantTile trackRef={screenShareTrack} className="h-full w-full [&>video]:object-contain [&_.lk-participant-metadata]:hidden" />
                 </div>
                 {otherTracks.length > 0 && (
                    <div className="flex gap-2 overflow-x-auto meet-scrollbar h-20 shrink-0 px-0.5 pb-0.5">
                       {otherTracks.map(t => (
                          <div key={`${t.participant.identity}-${t.source}`} className="aspect-video bg-black/50 rounded-xl overflow-hidden shrink-0 shadow-md ring-1 ring-white/5">
-                            <ParticipantTile trackRef={t} className="h-full w-full" />
+                            <ParticipantTile trackRef={t} className="h-full w-full [&_.lk-participant-metadata]:hidden" />
                          </div>
                       ))}
                    </div>
@@ -760,13 +760,13 @@ function PipGrid({ onLeave, onChat, onToggleMic, onToggleCam, isMicOn, isCamOn, 
           ) : pipViewMode === 'gallery' ? (
              <div className="w-full h-full bg-black/50 rounded-2xl overflow-hidden shadow-lg ring-1 ring-white/5">
                 <GridLayout tracks={tracks.slice(0, 16)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-                  <ParticipantTile />
+                  <ParticipantTile className="h-full w-full [&_.lk-participant-metadata]:hidden" />
                 </GridLayout>
              </div>
           ) : (
              <div className="w-full h-full bg-black/50 rounded-2xl overflow-hidden shadow-lg ring-1 ring-white/5">
                 <GridLayout tracks={tracks.slice(0, 9)} className="h-full w-full outline-none" style={{ height: '100%', width: '100%' }}>
-                 <ParticipantTile />
+                 <ParticipantTile className="h-full w-full [&_.lk-participant-metadata]:hidden" />
                 </GridLayout>
              </div>
           )}
