@@ -159,20 +159,37 @@ function Shell({ roomId, isHost, password, onLeave, videoQuality, setVideoQualit
   const captionsOnRef = useRef(captionsOn);
   const globalPinnedIdentityRef = useRef(globalPinnedIdentity);
 
-  // Debounced dominant speaker
+  // Debounced dominant speaker with sticky hold
   const activeSpeakers = useSpeakingParticipants();
   const [dominantSpeaker, setDominantSpeaker] = useState<string | null>(null);
+  const lastSwitchTime = useRef<number>(0);
+  const switchTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (activeSpeakers.length > 0) {
       const topSpeaker = activeSpeakers[0].identity;
+      
       if (topSpeaker !== dominantSpeaker) {
-        const timer = setTimeout(() => {
+        if (switchTimer.current) clearTimeout(switchTimer.current);
+
+        const timeSinceLastSwitch = Date.now() - lastSwitchTime.current;
+        const holdTimeRemaining = Math.max(0, 3000 - timeSinceLastSwitch); // 3 detik minimum hold
+        const delay = Math.max(1500, holdTimeRemaining); // 1.5 detik debounce tunda
+
+        switchTimer.current = setTimeout(() => {
           setDominantSpeaker(topSpeaker);
-        }, 500); // Wait 500ms before switching dominant speaker
-        return () => clearTimeout(timer);
+          lastSwitchTime.current = Date.now();
+        }, delay);
+      } else {
+        if (switchTimer.current) clearTimeout(switchTimer.current);
       }
+    } else {
+      if (switchTimer.current) clearTimeout(switchTimer.current);
     }
+    
+    return () => {
+      if (switchTimer.current) clearTimeout(switchTimer.current);
+    };
   }, [activeSpeakers, dominantSpeaker]);
 
   useEffect(() => { timerRef.current = timer; adminsRef.current = admins; superAdminRef.current = superAdmin; }, [timer, admins, superAdmin]);
